@@ -1,16 +1,16 @@
-# 🎬 ReelPilot — Frontend
+# ReelPilot - Frontend
 
 <p align="center">
   <img src="public/logo.svg" alt="ReelPilot Logo" width="96" height="96" />
 </p>
 
 <p align="center">
-  <strong>“From raw clips to ready-to-publish content.”</strong>
+  <strong>"From raw clips to ready-to-publish content."</strong>
 </p>
 
 ---
 
-## 🚀 Overview
+## Overview
 
 The **ReelPilot** frontend is a high-performance, dark-themed (OLED dark palette) desktop web interface built with **React 19**, **TypeScript**, and **Vite 8**. It interfaces directly with the local FastAPI backend to provide an end-to-end video pipeline:
 
@@ -21,7 +21,7 @@ The **ReelPilot** frontend is a high-performance, dark-themed (OLED dark palette
 5. **Publishing History**: Real-time audit log with single-platform retries.
 6. **Settings & Integrations**: Local storage management, disk usage meter, and OAuth credential management.
 
-## 🛠️ Development
+## Development
 
 ```bash
 # Install dependencies
@@ -37,7 +37,7 @@ npm run build
 ---
 
 <p align="center">
-  Crafted with ❤️ By <a href="https://github.com/subha-3128" target="_blank" rel="noopener noreferrer">Nubru</a>
+  Crafted by <a href="https://github.com/subha-3128" target="_blank" rel="noopener noreferrer">Nubru</a>
 </p>
 
 <p align="center">

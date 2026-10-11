@@ -204,10 +204,10 @@
     "semantic_hash": "cdb197b5ff0354f17109d1524e643b2b"
   },
   "frontend/src/components/Sidebar.tsx": {
-    "mtime": 1791742898.6538324,
-    "seen": 1791743024.573514,
-    "ast_hash": "efebee536c1b6c9b72dd5d41e5e9a86d",
-    "semantic_hash": "efebee536c1b6c9b72dd5d41e5e9a86d"
+    "mtime": 1791743191.1990266,
+    "seen": 1791743321.313131,
+    "ast_hash": "ff5edf2f1164f5e9b56f95b2b8e0df4c",
+    "semantic_hash": "ff5edf2f1164f5e9b56f95b2b8e0df4c"
   },
   "frontend/src/main.tsx": {
     "mtime": 1791738013.585063,
@@ -240,10 +240,10 @@
     "semantic_hash": "6d20e6770816321392240cd12910021d"
   },
   "frontend/src/pages/SettingsPage.tsx": {
-    "mtime": 1791742925.167944,
-    "seen": 1791743024.5735931,
-    "ast_hash": "b3ce8a6fd594ac2cbdd8ca2367ef4347",
-    "semantic_hash": "b3ce8a6fd594ac2cbdd8ca2367ef4347"
+    "mtime": 1791743199.0502415,
+    "seen": 1791743321.313214,
+    "ast_hash": "9dc29d0983e2d9f80d8a89adce2af8b4",
+    "semantic_hash": "9dc29d0983e2d9f80d8a89adce2af8b4"
   },
   "frontend/src/pages/StudioPage.tsx": {
     "mtime": 1791739012.078801,

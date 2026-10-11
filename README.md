@@ -24,53 +24,53 @@
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 
-- [Key Highlights](#-key-highlights)
-- [System Architecture](#-system-architecture)
-- [The 6-Step Studio Workflow](#-the-6-step-studio-workflow)
-- [Project Directory Layout](#-project-directory-layout)
-- [Prerequisites & System Requirements](#-prerequisites--system-requirements)
-- [Quick Start Guide](#-quick-start-guide)
-- [Configuration & Credentials](#-configuration--credentials)
-- [Automated Testing & Verification](#-automated-testing--verification)
-- [REST API Specifications](#-rest-api-specifications)
-- [Security & Privacy Model](#-security--privacy-model)
-- [Graphify Architecture Knowledge Graph](#-graphify-architecture-knowledge-graph)
-- [License](#-license)
+- [Key Highlights](#key-highlights)
+- [System Architecture](#system-architecture)
+- [The 6-Step Studio Workflow](#the-6-step-studio-workflow)
+- [Project Directory Layout](#project-directory-layout)
+- [Prerequisites & System Requirements](#prerequisites--system-requirements)
+- [Quick Start Guide](#quick-start-guide)
+- [Configuration & Credentials](#configuration--credentials)
+- [Automated Testing & Verification](#automated-testing--verification)
+- [REST API Specifications](#rest-api-specifications)
+- [Security & Privacy Model](#security-privacy-model)
+- [Graphify Architecture Knowledge Graph](#graphify-architecture-knowledge-graph)
+- [License & Credits](#license--credits)
 
 ---
 
-## ✨ Key Highlights
+## Key Highlights
 
-- 🔒 **100% Local-First & Private:** All media files, SQLite databases, and API secrets remain strictly on your local Mac. Servers bind only to loopback (`127.0.0.1`).
-- 🎯 **Preserve Original Video Frames:** The source video stream is never cropped, distorted, or re-framed. The original 9:16 vertical video framing is strictly maintained, and original files are kept completely untouched in `storage/originals/`.
-- ⚡ **Dual-Engine Ingestion Pipeline:** 
+- **100% Local-First & Private:** All media files, SQLite databases, and API secrets remain strictly on your local Mac. Servers bind only to loopback (`127.0.0.1`).
+- **Preserve Original Video Frames:** The source video stream is never cropped, distorted, or re-framed. The original 9:16 vertical video framing is strictly maintained, and original files are kept completely untouched in `storage/originals/`.
+- **Dual-Engine Ingestion Pipeline:** 
   - **Primary:** High-speed native Kuaishou CDN stream parser (`window.INIT_STATE`) that follows mobile share links (`v.kuaishou.com`), pulls exact Chinese captions & author handles, and downloads high-definition `.mp4` video directly.
   - **Fallback:** Automatic failover to `yt-dlp` array execution.
-- 🎙️ **Voice-Over Engine:** 
+- **Voice-Over Engine:** 
   - Upload user-supplied English voice-over MP4s.
   - Automatically extracts the audio track via FFmpeg, discarding unnecessary video tracks.
   - Completely mutes original Chinese audio by default.
   - Three synchronization policies: `keep_natural_speed` (recommended), `fit_to_video` (atempo/rubberband), or `manual_adjustment`.
-- 📝 **Subtitle & Caption Generation:**
+- **Subtitle & Caption Generation:**
   - Automatic timestamped subtitle generation with local phrase segmentation.
   - In-browser interactive subtitle editor.
   - Subtitle burn-in with customizable font sizes, colors (`&H00FFFFFF`), and outline styles.
   - One-click `.srt` export.
-- 🤖 **AI Content Assistant:**
+- **AI Content Assistant:**
   - Integrated with **Google Gemini 3.8 Flash** (`gemini-3.8-flash`) to generate platform-tailored, viral Instagram captions/hashtags and YouTube Shorts titles, descriptions, and tags.
   - Smart local heuristic fallbacks when offline or unconfigured.
-- 🚀 **Multi-Platform Direct Publishing:**
+- **Multi-Platform Direct Publishing:**
   - **Instagram Reels:** Official Meta Graph API publishing with direct streaming ingestion.
   - **YouTube Shorts:** Google Cloud OAuth 2.0 resumable direct upload API (`youtube.upload` scope).
   - **Independent Platform Tracking:** Real-time statuses (`draft`, `scheduled`, `publishing`, `published`, `failed`).
   - **Single-Platform Retry:** Retry failed uploads on one platform without creating duplicate posts on successful ones.
-- 📁 **Configurable Storage Directory:** Select custom media destination directories (e.g., `~/Movies/KuaishouStudio` or external SSD) directly from the Settings page with automatic directory creation and disk space meters.
+- **Configurable Storage Directory:** Select custom media destination directories (e.g., `~/Movies/KuaishouStudio` or external SSD) directly from the Settings page with automatic directory creation and disk space meters.
 
 ---
 
-## 🏛 System Architecture
+## System Architecture
 
 ```mermaid
 graph TD
@@ -104,7 +104,7 @@ graph TD
 
 ---
 
-## 🪄 The 6-Step Studio Workflow
+## The 6-Step Studio Workflow
 
 The core studio wizard at `/studio` provides an intuitive 6-step guided experience:
 
@@ -119,7 +119,7 @@ The core studio wizard at `/studio` provides an intuitive 6-step guided experien
 
 ---
 
-## 📂 Project Directory Layout
+## Project Directory Layout
 
 ```
 kasu pro/
@@ -186,7 +186,7 @@ kasu pro/
 
 ---
 
-## 💻 Prerequisites & System Requirements
+## Prerequisites & System Requirements
 
 - **Operating System:** macOS (Apple Silicon or Intel)
 - **Python:** 3.12 or newer (Tested on Python 3.14)
@@ -202,7 +202,7 @@ kasu pro/
 
 ---
 
-## ⚡ Quick Start Guide
+## Quick Start Guide
 
 ### Option 1: One-Click Startup (Recommended)
 
@@ -243,7 +243,7 @@ npm run dev
 
 ---
 
-## 🔑 Configuration & Credentials
+## Configuration & Credentials
 
 Create a `backend/.env` file based on `backend/.env.example`:
 
@@ -282,7 +282,7 @@ YOUTUBE_REFRESH_TOKEN=your_oauth_refresh_token
 
 ---
 
-## 🧪 Automated Testing & Verification
+## Automated Testing & Verification
 
 The test suite validates URL security guards, path sanitization, subtitle formatting, Gemini AI generation, and a complete end-to-end video lifecycle with synthetic 9:16 media generated via FFmpeg.
 
@@ -313,7 +313,7 @@ backend/tests/test_full_workflow.py::test_complete_end_to_end_video_workflow PAS
 
 ---
 
-## 📡 REST API Specifications
+## REST API Specifications
 
 ### Ingestion & Library (`/api/assets`)
 - `POST /api/assets/inspect` — Validate Kuaishou URL, follow redirects, check duplicates, extract Chinese title & duration.
@@ -351,7 +351,7 @@ backend/tests/test_full_workflow.py::test_complete_end_to_end_video_workflow PAS
 
 ---
 
-## 🛡️ Security & Privacy Model
+## Security & Privacy Model
 
 1. **Loopback Server Binding:** The backend binds strictly to `127.0.0.1:8000`, preventing unauthorized network access from other devices on the local area network.
 2. **SSRF Guard:** Ingestion URLs are strictly validated against an allowlist of official Kuaishou/Kwai domains (`v.kuaishou.com`, `kuaishou.com`, `kwai.com`, `chenzhongtech.com`). DNS resolution blocks private, loopback, and link-local IP addresses.
@@ -360,7 +360,7 @@ backend/tests/test_full_workflow.py::test_complete_end_to_end_video_workflow PAS
 
 ---
 
-## 🗺️ Graphify Architecture Knowledge Graph
+## Graphify Architecture Knowledge Graph
 
 The project codebase maintains a persistent architectural knowledge graph generated by **Graphify**:
 
@@ -374,12 +374,12 @@ graphify extract . --code-only && graphify export html
 
 ---
 
-## 📄 License & Credits
+## License & Credits
 
 This project is licensed under the [MIT License](LICENSE). Authorized for lawful video downloading, translation, and creator syndication.
 
 <p align="center">
-  Crafted with ❤️ By <a href="https://github.com/subha-3128" target="_blank" rel="noopener noreferrer">Nubru</a>
+  Crafted by <a href="https://github.com/subha-3128" target="_blank" rel="noopener noreferrer">Nubru</a>
 </p>
 
 <p align="center">

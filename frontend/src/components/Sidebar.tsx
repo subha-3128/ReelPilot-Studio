@@ -58,7 +58,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
             }}
           />
           <div>
-            <h2 style={{ fontSize: '1.05rem', fontWeight: 700, letterSpacing: '-0.01em', background: 'linear-gradient(135deg, #FF5E3A 0%, #EC4899 50%, #A855F7 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            <h2 style={{ fontSize: '1.05rem', fontWeight: 700, letterSpacing: '-0.01em', color: '#FFFFFF' }}>
               ReelPilot
             </h2>
             <span style={{ fontSize: '0.68rem', color: 'var(--color-muted-foreground)', display: 'block', lineHeight: 1.2 }}>

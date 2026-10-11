@@ -389,9 +389,7 @@ export const SettingsPage: React.FC = () => {
             fontSize: '1.25rem',
             fontWeight: 700,
             marginBottom: '4px',
-            background: 'linear-gradient(135deg, #FF5E3A 0%, #EC4899 50%, #A855F7 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
+            color: '#FFFFFF',
           }}
         >
           ReelPilot
