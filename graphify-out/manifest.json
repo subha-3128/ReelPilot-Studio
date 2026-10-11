@@ -66,16 +66,16 @@
     "semantic_hash": "6682554af70d66338ce9192332ca9d67"
   },
   "backend/app/core/config.py": {
-    "mtime": 1791742936.0698066,
-    "seen": 1791743024.573202,
-    "ast_hash": "021d4f25c487b896f1e12e82f65d1a93",
-    "semantic_hash": "021d4f25c487b896f1e12e82f65d1a93"
+    "mtime": 1791745423.00409,
+    "seen": 1791745912.86382,
+    "ast_hash": "0c8455cc91ee4d7b7d8b7af0b44a1ac9",
+    "semantic_hash": "0c8455cc91ee4d7b7d8b7af0b44a1ac9"
   },
   "backend/app/core/database.py": {
-    "mtime": 1791740035.5915155,
-    "seen": 1791741243.27448,
-    "ast_hash": "6d68c592bbef75c552e68bb97f1c81dd",
-    "semantic_hash": "6d68c592bbef75c552e68bb97f1c81dd"
+    "mtime": 1791745479.791854,
+    "seen": 1791745912.86382,
+    "ast_hash": "74496e6abf3cc4deb8a3a62a8a6459fd",
+    "semantic_hash": "74496e6abf3cc4deb8a3a62a8a6459fd"
   },
   "backend/app/core/security.py": {
     "mtime": 1791741592.3035254,
@@ -84,10 +84,10 @@
     "semantic_hash": "77123d2608ce6f21ceee76350ba472dd"
   },
   "backend/app/main.py": {
-    "mtime": 1791742947.810321,
-    "seen": 1791743024.5732381,
-    "ast_hash": "367db70356cc81e61c6a023e2766c2d7",
-    "semantic_hash": "367db70356cc81e61c6a023e2766c2d7"
+    "mtime": 1791745639.387145,
+    "seen": 1791745912.863839,
+    "ast_hash": "40ff5f4361b2c04420b5386067ca81e2",
+    "semantic_hash": "40ff5f4361b2c04420b5386067ca81e2"
   },
   "backend/app/models/__init__.py": {
     "mtime": 1791738390.101195,
@@ -96,10 +96,10 @@
     "semantic_hash": "e66b4773411d3adfab6fd117fa762af5"
   },
   "backend/app/models/models.py": {
-    "mtime": 1791738140.337167,
-    "seen": 1791739795.706393,
-    "ast_hash": "b836429cbc45fe9eff23bed67899b81f",
-    "semantic_hash": "b836429cbc45fe9eff23bed67899b81f"
+    "mtime": 1791745455.461932,
+    "seen": 1791745912.8638568,
+    "ast_hash": "a850da0e143466abc257a79e306c8e59",
+    "semantic_hash": "a850da0e143466abc257a79e306c8e59"
   },
   "backend/app/schemas/__init__.py": {
     "mtime": 1791738395.5068898,
@@ -282,9 +282,63 @@
     "semantic_hash": "5d54447744c19ccd28638a5c668d15ea"
   },
   "run.sh": {
-    "mtime": 1791740072.441674,
-    "seen": 1791741243.274982,
-    "ast_hash": "11fd9b3dbac46f1c7d5ff3de68e9708a",
-    "semantic_hash": "11fd9b3dbac46f1c7d5ff3de68e9708a"
+    "mtime": 1791745815.477262,
+    "seen": 1791745912.864334,
+    "ast_hash": "79be4cd89d77df14699574c5c009bcc5",
+    "semantic_hash": "79be4cd89d77df14699574c5c009bcc5"
+  },
+  "backend/app/telegram/__init__.py": {
+    "mtime": 1791745498.8577137,
+    "seen": 1791745912.864009,
+    "ast_hash": "465add90c1a87f92a13379c420bc3312",
+    "semantic_hash": "465add90c1a87f92a13379c420bc3312"
+  },
+  "backend/app/telegram/bot.py": {
+    "mtime": 1791745627.0756373,
+    "seen": 1791745912.86401,
+    "ast_hash": "50b0734ab3e24b701f1b602ee9c93cb6",
+    "semantic_hash": "50b0734ab3e24b701f1b602ee9c93cb6"
+  },
+  "backend/app/telegram/conversations.py": {
+    "mtime": 1791745589.2674358,
+    "seen": 1791745912.86401,
+    "ast_hash": "94c6163f5e9db9e79c28bfceb82fa026",
+    "semantic_hash": "94c6163f5e9db9e79c28bfceb82fa026"
+  },
+  "backend/app/telegram/handlers.py": {
+    "mtime": 1791745613.264582,
+    "seen": 1791745912.864011,
+    "ast_hash": "1228e218cdfb6667ff66cad294934977",
+    "semantic_hash": "1228e218cdfb6667ff66cad294934977"
+  },
+  "backend/app/telegram/keyboards.py": {
+    "mtime": 1791745521.5158813,
+    "seen": 1791745912.864012,
+    "ast_hash": "e7ddb182389299eb2ba38f2b9c222140",
+    "semantic_hash": "e7ddb182389299eb2ba38f2b9c222140"
+  },
+  "backend/app/telegram/notifications.py": {
+    "mtime": 1791745531.0375934,
+    "seen": 1791745912.864012,
+    "ast_hash": "8760f457479498fc9b6dd5a3a2c70779",
+    "semantic_hash": "8760f457479498fc9b6dd5a3a2c70779"
+  },
+  "backend/app/telegram/pipeline.py": {
+    "mtime": 1791745728.9926093,
+    "seen": 1791745912.864013,
+    "ast_hash": "484581dedc644b57534dd0ce6b16eb76",
+    "semantic_hash": "484581dedc644b57534dd0ce6b16eb76"
+  },
+  "backend/app/telegram/security.py": {
+    "mtime": 1791745508.61192,
+    "seen": 1791745912.864013,
+    "ast_hash": "0b56896bd7e306cca5e7bd9a7f49f44b",
+    "semantic_hash": "0b56896bd7e306cca5e7bd9a7f49f44b"
+  },
+  "backend/tests/test_telegram_automation.py": {
+    "mtime": 1791745747.0244572,
+    "seen": 1791745912.86406,
+    "ast_hash": "1c7b324add382184d59080374a0c780a",
+    "semantic_hash": "1c7b324add382184d59080374a0c780a"
   }
 }

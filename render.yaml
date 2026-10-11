@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: reelpilot-studio
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite:////app/storage/studio.db
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_ALLOWED_USER_IDS
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: TELEGRAM_MODE
+        value: polling
+      - key: TELEGRAM_DEFAULT_WORKFLOW_MODE
+        value: interactive
+      - key: REELPILOT_MAX_CONCURRENT_JOBS
+        value: "1"
+      - key: REELPILOT_MAX_VIDEO_SIZE_MB
+        value: "50"
+      - key: REELPILOT_CLOUD_MODE
+        value: "true"

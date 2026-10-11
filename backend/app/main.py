@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.core.database import init_db
 from app.services.scheduler import scheduler
 from app.api.router import api_router
+from app.telegram import telegram_bot_manager
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,7 +21,11 @@ async def lifespan(app: FastAPI):
     init_db()
     logger.info("Starting background scheduler...")
     scheduler.start()
+    logger.info("Starting Telegram Bot automation...")
+    await telegram_bot_manager.start()
     yield
+    logger.info("Shutting down Telegram Bot...")
+    await telegram_bot_manager.stop()
     logger.info("Shutting down background scheduler...")
     scheduler.stop()
 

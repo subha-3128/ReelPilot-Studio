@@ -45,6 +45,26 @@ class Settings(BaseSettings):
     YOUTUBE_REFRESH_TOKEN: str = ""
     YOUTUBE_CLIENT_SECRETS_FILE: str = ""
 
+    # Telegram Bot Automation
+    TELEGRAM_BOT_TOKEN: str = ""
+    TELEGRAM_ALLOWED_USER_IDS: str = ""  # Comma-separated list of Telegram user IDs (e.g. "12345678,87654321")
+    TELEGRAM_MODE: str = "polling"  # polling | disabled
+    TELEGRAM_DEFAULT_WORKFLOW_MODE: str = "interactive"  # interactive | automatic
+    REELPILOT_MAX_CONCURRENT_JOBS: int = 1
+    REELPILOT_MAX_VIDEO_SIZE_MB: int = 100
+    REELPILOT_AUTO_PUBLISH: bool = False
+    REELPILOT_CLOUD_MODE: bool = False
+
+    def get_allowed_telegram_user_ids(self) -> set:
+        if not self.TELEGRAM_ALLOWED_USER_IDS:
+            return set()
+        ids = set()
+        for piece in self.TELEGRAM_ALLOWED_USER_IDS.split(","):
+            piece = piece.strip()
+            if piece.isdigit():
+                ids.add(int(piece))
+        return ids
+
     model_config = {
         "env_file": str(Path(__file__).resolve().parent.parent.parent / ".env"),
         "extra": "ignore",

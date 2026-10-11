@@ -1,0 +1,17 @@
+[Unit]
+Description=ReelPilot Studio — Video Production & Telegram Worker
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/ReelPilot-Studio
+EnvironmentFile=/home/ubuntu/ReelPilot-Studio/backend/.env
+Environment="PYTHONPATH=/home/ubuntu/ReelPilot-Studio/backend"
+ExecStart=/home/ubuntu/ReelPilot-Studio/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=10
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

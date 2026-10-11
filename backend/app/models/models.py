@@ -125,14 +125,42 @@ class ProcessingJob(Base):
     __tablename__ = "processing_jobs"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    job_type = Column(String(64), nullable=False)  # download, extract_audio, sync_voiceover, transcribe, burn_subtitles, export, publish
+    job_type = Column(String(64), nullable=False)  # full_pipeline, download, sync_voiceover, transcribe, burn_subtitles, export, publish
     asset_id = Column(String(36), nullable=True)
-    status = Column(String(32), default="queued")  # queued, processing, completed, failed, cancelled
+    status = Column(String(32), default="queued")  # awaiting_input, queued, downloading, transcribing, burning_subtitles, analyzing, exporting, ready, publishing, completed, failed, cancelled
     progress = Column(Float, default=0.0)  # 0.0 to 100.0
     stage = Column(String(128), default="Initializing")
     retry_count = Column(Integer, default=0)
     error_code = Column(String(64), nullable=True)
     error_message = Column(Text, nullable=True)
+
+    # Telegram association & automation
+    telegram_chat_id = Column(String(64), nullable=True, index=True)
+    telegram_user_id = Column(String(64), nullable=True)
+    telegram_message_id = Column(Integer, nullable=True)  # Status message ID in Telegram
+    workflow_mode = Column(String(32), default="interactive")  # interactive | automatic
+    source_url = Column(String(1024), nullable=True)
+    collected_settings = Column(JSON, default=dict)
+    output_derivative_id = Column(String(36), nullable=True)
+    published_platforms = Column(JSON, default=list)
+
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+
+class TelegramUserPreference(Base):
+    __tablename__ = "telegram_user_preferences"
+
+    telegram_user_id = Column(String(64), primary_key=True)
+    workflow_mode = Column(String(32), default="interactive")  # interactive | automatic
+    default_sync_policy = Column(String(64), default="keep_natural_speed")  # keep_natural_speed | fit_to_video
+    default_mute_original = Column(Boolean, default=True)
+    default_burn_subtitles = Column(Boolean, default=True)
+    default_subtitle_font_size = Column(Integer, default=24)
+    default_ai_tone = Column(String(32), default="engaging")  # engaging | professional | humorous
+    default_publish_target = Column(String(32), default="none")  # none | instagram | youtube | both
+    auto_publish = Column(Boolean, default=False)
+
     created_at = Column(DateTime, default=utc_now)
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 

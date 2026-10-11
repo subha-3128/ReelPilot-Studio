@@ -33,6 +33,8 @@
 - [Prerequisites & System Requirements](#prerequisites--system-requirements)
 - [Quick Start Guide](#quick-start-guide)
 - [Configuration & Credentials](#configuration--credentials)
+- [Telegram Automation & Bot Setup](#telegram-automation--bot-setup)
+- [Zero-Budget Cloud Deployment (Render.com & Oracle)](#zero-budget-cloud-deployment-rendercom--oracle)
 - [Automated Testing & Verification](#automated-testing--verification)
 - [REST API Specifications](#rest-api-specifications)
 - [Security & Privacy Model](#security-privacy-model)
@@ -275,10 +277,165 @@ INSTAGRAM_ACCESS_TOKEN=your_meta_user_or_page_access_token
 YOUTUBE_CLIENT_ID=your_oauth_client_id.apps.googleusercontent.com
 YOUTUBE_CLIENT_SECRET=your_oauth_client_secret
 YOUTUBE_REFRESH_TOKEN=your_oauth_refresh_token
+
+# Telegram Bot Automation (Zero-Budget Cloud Pipeline)
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_from_botfather
+TELEGRAM_ALLOWED_USER_IDS=your_telegram_user_id
+TELEGRAM_MODE=polling
+TELEGRAM_DEFAULT_WORKFLOW_MODE=interactive
+REELPILOT_MAX_CONCURRENT_JOBS=1
+REELPILOT_MAX_VIDEO_SIZE_MB=100
+REELPILOT_AUTO_PUBLISH=false
+REELPILOT_CLOUD_MODE=false
 ```
 
 > [!NOTE]
 > All credentials can also be connected and inspected dynamically from the **Settings** page in the user interface.
+
+---
+
+## Telegram Automation & Bot Setup
+
+ReelPilot Studio can be fully controlled via Telegram, enabling hands-free automated video production from your mobile phone or laptop.
+
+### 1. Create a Bot with BotFather
+1. Open Telegram and search for `@BotFather`.
+2. Send `/newbot` and follow instructions to choose a name and username (e.g., `MyReelPilotBot`).
+3. Copy the HTTP API token provided by BotFather and set it in `backend/.env`:
+   ```env
+   TELEGRAM_BOT_TOKEN=123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ
+   ```
+
+### 2. Determine Your Authorized Telegram User ID
+For personal security, the bot only responds to user IDs listed in `TELEGRAM_ALLOWED_USER_IDS`:
+1. Start a chat with `@userinfobot` on Telegram to view your numeric ID, or simply message your new bot.
+2. If unauthorized, the bot will reply with your exact numeric ID (e.g., `123456789`).
+3. Add this ID to `backend/.env`:
+   ```env
+   TELEGRAM_ALLOWED_USER_IDS=123456789
+   ```
+
+### 3. Workflow Operating Modes
+- **Interactive Mode (Default):**
+  When you send a video link, the bot guides you through inline keyboard buttons:
+  - Step 1: Audio Policy (Natural Speed / Fit Duration / Keep Original Audio).
+  - Step 2: Subtitles (Burn 24pt White Subtitles / No Burn).
+  - Step 3: AI Tone (Engaging / Professional / Humorous).
+  - Step 4: Social Destination (Export Only / Instagram Reels / YouTube Shorts / Both).
+  - Step 5: Confirmation and background job queueing.
+- **Automatic Mode:**
+  Reuses your saved preferences from `/settings` and immediately begins downloading, dubbing, burning subtitles, generating AI copy, and exporting without asking intermediate questions.
+  Switch modes anytime using `/mode`.
+
+### 4. Bot Commands
+- `/start` - Initialize bot and display operating status.
+- `/help` - Usage instructions and supported link formats.
+- `/mode` - Switch between Interactive and Automatic mode.
+- `/settings` - View your default saved preferences.
+- `/status` - View active in-flight processing jobs and progress bars.
+- `/jobs` - View history of recent processing jobs.
+- `/cancel` - Cancel a pending or queued workflow.
+- `/retry <job_id>` - Safely retry a failed job without duplicating completed parts.
+
+### 5. Delivery & Output Limits
+- Output videos under 50 MB (Telegram Bot API limit) are streamed directly into your Telegram chat alongside AI-generated titles, captions, and hashtags.
+- Videos exceeding 50 MB are preserved on persistent storage, and the bot provides a local/cloud streaming link.
+
+---
+
+## Zero-Budget Cloud Deployment (Render.com & Oracle)
+
+ReelPilot Studio is engineered to run 24/7 in the cloud on persistent infrastructure with zero ongoing costs (0 INR / 0 USD per month). Once deployed, your video pipeline runs independently of your personal Mac.
+
+### Method 1: Render.com (100% Free, No Credit/Debit Card Required)
+
+Render provides a free Docker Web Service tier without requiring any credit or debit card for registration (only GitHub or email authentication).
+
+1. Sign up at https://render.com using your GitHub account.
+2. In your Render Dashboard, click **New +** and select **Blueprint** (or **Web Service**).
+3. Connect your `ReelPilot-Studio` GitHub repository. Render automatically reads `render.yaml` and configures the service.
+4. Specify your environment variables in the Render Dashboard under **Environment**:
+   - `TELEGRAM_BOT_TOKEN`: Your token from BotFather (`8768413756:AAFp645DgMWGlcyYyj4lOo5-EO-N3sv3bfs`)
+   - `TELEGRAM_ALLOWED_USER_IDS`: Your numeric Telegram User ID
+   - `GEMINI_API_KEY`: Your Google AI Studio API key
+5. Deploy the service. Render will build the container using the provided `Dockerfile` (installing FFmpeg, Python 3.12, and all dependencies).
+6. **24/7 Keep-Alive Setup (Prevent Auto-Sleep):**
+   Render free web services spin down after 15 minutes of web inactivity. To keep Telegram long-polling active 24/7, add your service health URL (`https://your-service-name.onrender.com/api/health`) to a free uptime pinger such as:
+   - [cron-job.org](https://cron-job.org) (Schedule an HTTP GET request every 10 minutes, completely free, no card needed)
+   - [uptimerobot.com](https://uptimerobot.com) (HTTP monitor every 5 or 10 minutes, free tier, no card needed)
+   Since Render gives 750 free instance hours per month, one web service running 24/7 uses 744 hours in a 31-day month, remaining 100% free forever.
+
+---
+
+### Method 2: Oracle Cloud Always Free (Requires Credit Card Verification)
+
+### 2. Server Provisioning & Dependencies
+Connect to your Ubuntu instance via SSH:
+```bash
+ssh -i ~/.ssh/id_rsa ubuntu@<YOUR_INSTANCE_PUBLIC_IP>
+```
+
+Install Docker and Docker Compose (or native system dependencies):
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y curl git ffmpeg
+
+# Install Docker
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker ubuntu
+```
+
+### 3. Clone Repository & Configure Environment
+```bash
+git clone https://github.com/subha-3128/ReelPilot-Studio.git
+cd ReelPilot-Studio
+
+# Copy environment template
+cp backend/.env.example backend/.env
+nano backend/.env
+```
+Fill in:
+- `TELEGRAM_BOT_TOKEN`: Token from BotFather
+- `TELEGRAM_ALLOWED_USER_IDS`: Your Telegram User ID
+- `GEMINI_API_KEY`: Free-tier API key from Google AI Studio (https://aistudio.google.com/)
+- Optional: `INSTAGRAM_ACCESS_TOKEN`, `YOUTUBE_REFRESH_TOKEN`
+
+### 4. Deployment Option A: Docker Compose (Recommended)
+Launch the unified background worker container:
+```bash
+docker compose up -d --build
+```
+Check operational logs:
+```bash
+docker compose logs -f
+```
+Verify health check:
+```bash
+docker compose ps
+```
+
+### 5. Deployment Option B: Native Systemd Service (Lightweight)
+For minimal RAM usage on 1 GB instances, run directly without containerization:
+```bash
+# Setup Python venv
+sudo apt install -y python3-venv python3-pip
+python3 -m venv backend/.venv
+backend/.venv/bin/pip install -r backend/requirements.txt
+
+# Install systemd service
+sudo cp reelpilot.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now reelpilot.service
+
+# Check status and logs
+sudo systemctl status reelpilot.service
+journalctl -u reelpilot.service -f
+```
+
+### 6. Persistence & Restart Resilience
+- **Database:** SQLite database is stored at `storage/studio.db` on host disk.
+- **Media Files:** `storage/originals/`, `storage/derivatives/`, `storage/voiceovers/` are mounted as persistent host volumes.
+- **Auto-Recovery:** If the server restarts, interrupted in-flight jobs are safely marked as failed with instructions to retry, preventing corrupted partial files or duplicate social publishing.
 
 ---
 
