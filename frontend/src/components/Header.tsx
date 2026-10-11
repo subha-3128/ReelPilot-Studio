@@ -80,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab }) => {
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
         <img
           src="/logo.svg"
-          alt="Kuaishou Video Studio Logo"
+          alt="ReelPilot Logo"
           style={{
             width: '38px',
             height: '38px',

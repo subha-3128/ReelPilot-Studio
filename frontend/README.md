@@ -1,32 +1,45 @@
-# React + TypeScript + Vite
+# 🎬 ReelPilot — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+<p align="center">
+  <img src="public/logo.svg" alt="ReelPilot Logo" width="96" height="96" />
+</p>
 
-Currently, two official plugins are available:
+<p align="center">
+  <strong>“From raw clips to ready-to-publish content.”</strong>
+</p>
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 🚀 Overview
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The **ReelPilot** frontend is a high-performance, dark-themed (OLED dark palette) desktop web interface built with **React 19**, **TypeScript**, and **Vite 8**. It interfaces directly with the local FastAPI backend to provide an end-to-end video pipeline:
 
-## Expanding the Oxlint configuration
+1. **Add Video / URL**: Direct Kuaishou ingestion with metadata preview.
+2. **Video Library**: Media catalog with range-request HTML5 video playback.
+3. **Video Studio**: 6-step guided wizard (Voice-over synchronization, subtitle editing, burn-in preview, AI copy, direct publishing).
+4. **Publishing Calendar**: Timezone-aware scheduled publication calendar.
+5. **Publishing History**: Real-time audit log with single-platform retries.
+6. **Settings & Integrations**: Local storage management, disk usage meter, and OAuth credential management.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## 🛠️ Development
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+# Install dependencies
+npm install
+
+# Start Vite development server
+npm run dev
+
+# Typecheck and build for production
+npm run build
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+---
+
+<p align="center">
+  Crafted with ❤️ By <a href="https://github.com/subha-3128" target="_blank" rel="noopener noreferrer">Nubru</a>
+</p>
+
+<p align="center">
+  <small>© 2026 ReelPilot Studio. All rights reserved.</small>
+</p>

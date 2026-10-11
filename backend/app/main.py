@@ -27,7 +27,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="Local-first studio for Kuaishou/Kwai videos with English voice-over synchronization and multi-platform publishing.",
+    description="From raw clips to ready-to-publish content.",
     lifespan=lifespan,
 )
 

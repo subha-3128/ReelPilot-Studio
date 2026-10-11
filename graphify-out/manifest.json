@@ -66,10 +66,10 @@
     "semantic_hash": "6682554af70d66338ce9192332ca9d67"
   },
   "backend/app/core/config.py": {
-    "mtime": 1791741581.346426,
-    "seen": 1791741771.121752,
-    "ast_hash": "12953f89699bd69f0d706f855b412fe9",
-    "semantic_hash": "12953f89699bd69f0d706f855b412fe9"
+    "mtime": 1791742936.0698066,
+    "seen": 1791743024.573202,
+    "ast_hash": "021d4f25c487b896f1e12e82f65d1a93",
+    "semantic_hash": "021d4f25c487b896f1e12e82f65d1a93"
   },
   "backend/app/core/database.py": {
     "mtime": 1791740035.5915155,
@@ -84,10 +84,10 @@
     "semantic_hash": "77123d2608ce6f21ceee76350ba472dd"
   },
   "backend/app/main.py": {
-    "mtime": 1791740043.4350798,
-    "seen": 1791741243.274498,
-    "ast_hash": "4ff4342a85785e995001903a2d2c5c7f",
-    "semantic_hash": "4ff4342a85785e995001903a2d2c5c7f"
+    "mtime": 1791742947.810321,
+    "seen": 1791743024.5732381,
+    "ast_hash": "367db70356cc81e61c6a023e2766c2d7",
+    "semantic_hash": "367db70356cc81e61c6a023e2766c2d7"
   },
   "backend/app/models/__init__.py": {
     "mtime": 1791738390.101195,
@@ -180,10 +180,10 @@
     "semantic_hash": "029f4905006c1fffd96bc863e2d98d3e"
   },
   "frontend/package.json": {
-    "mtime": 1791738029.9631817,
-    "seen": 1791739795.706401,
-    "ast_hash": "823196c7241cf6f561e07d7cbd2695a2",
-    "semantic_hash": "823196c7241cf6f561e07d7cbd2695a2"
+    "mtime": 1791742958.241838,
+    "seen": 1791743024.5734808,
+    "ast_hash": "1f29727cef168b0ead81556878356242",
+    "semantic_hash": "1f29727cef168b0ead81556878356242"
   },
   "frontend/src/App.tsx": {
     "mtime": 1791738848.0799115,
@@ -198,16 +198,16 @@
     "semantic_hash": "7d5845b86667410328c526ffc7caf423"
   },
   "frontend/src/components/Header.tsx": {
-    "mtime": 1791742465.792775,
-    "seen": 1791742567.877686,
-    "ast_hash": "0a440ecf6f611d884239225b34d216c2",
-    "semantic_hash": "0a440ecf6f611d884239225b34d216c2"
+    "mtime": 1791742910.2552004,
+    "seen": 1791743024.573513,
+    "ast_hash": "cdb197b5ff0354f17109d1524e643b2b",
+    "semantic_hash": "cdb197b5ff0354f17109d1524e643b2b"
   },
   "frontend/src/components/Sidebar.tsx": {
-    "mtime": 1791742509.1974063,
-    "seen": 1791742567.877687,
-    "ast_hash": "1b0215a4f5746997d54344aa5605ff14",
-    "semantic_hash": "1b0215a4f5746997d54344aa5605ff14"
+    "mtime": 1791742898.6538324,
+    "seen": 1791743024.573514,
+    "ast_hash": "efebee536c1b6c9b72dd5d41e5e9a86d",
+    "semantic_hash": "efebee536c1b6c9b72dd5d41e5e9a86d"
   },
   "frontend/src/main.tsx": {
     "mtime": 1791738013.585063,
@@ -240,10 +240,10 @@
     "semantic_hash": "6d20e6770816321392240cd12910021d"
   },
   "frontend/src/pages/SettingsPage.tsx": {
-    "mtime": 1791741861.1538692,
-    "seen": 1791741876.2807171,
-    "ast_hash": "26b9a64d105cd99ae2fa5bc0cd5819e3",
-    "semantic_hash": "26b9a64d105cd99ae2fa5bc0cd5819e3"
+    "mtime": 1791742925.167944,
+    "seen": 1791743024.5735931,
+    "ast_hash": "b3ce8a6fd594ac2cbdd8ca2367ef4347",
+    "semantic_hash": "b3ce8a6fd594ac2cbdd8ca2367ef4347"
   },
   "frontend/src/pages/StudioPage.tsx": {
     "mtime": 1791739012.078801,

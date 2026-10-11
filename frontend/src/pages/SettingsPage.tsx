@@ -361,6 +361,60 @@ export const SettingsPage: React.FC = () => {
         </p>
       </div>
 
+      {/* About ReelPilot Card */}
+      <div
+        className="card"
+        style={{
+          marginTop: '24px',
+          textAlign: 'center',
+          padding: '32px 24px',
+          background: 'linear-gradient(180deg, rgba(31, 41, 55, 0.4) 0%, rgba(17, 24, 39, 0.6) 100%)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+        }}
+      >
+        <img
+          src="/logo.svg"
+          alt="ReelPilot Logo"
+          style={{
+            width: '48px',
+            height: '48px',
+            margin: '0 auto 12px',
+            display: 'block',
+            borderRadius: '12px',
+            boxShadow: '0 0 20px rgba(255, 94, 58, 0.3)',
+          }}
+        />
+        <h3
+          style={{
+            fontSize: '1.25rem',
+            fontWeight: 700,
+            marginBottom: '4px',
+            background: 'linear-gradient(135deg, #FF5E3A 0%, #EC4899 50%, #A855F7 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+          }}
+        >
+          ReelPilot
+        </h3>
+        <p style={{ fontSize: '0.875rem', color: 'var(--color-muted-foreground)', marginBottom: '14px' }}>
+          From raw clips to ready-to-publish content.
+        </p>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--color-muted-foreground)', marginBottom: '6px' }}>
+          Crafted with ❤️ By{' '}
+          <a
+            href="https://github.com/subha-3128"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}
+          >
+            Nubru
+          </a>
+        </p>
+        <span style={{ fontSize: '0.75rem', color: 'rgba(156, 163, 175, 0.7)' }}>
+          © 2026 ReelPilot Studio. All rights reserved.
+        </span>
+      </div>
+
       {/* Connect Modal */}
       {connectingPlatform && (
         <div className="modal-overlay" onClick={() => setConnectingPlatform(null)}>

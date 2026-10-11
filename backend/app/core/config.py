@@ -3,7 +3,7 @@ from pathlib import Path
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    APP_NAME: str = "Kuaishou Video Studio"
+    APP_NAME: str = "ReelPilot"
     APP_VERSION: str = "1.0.0"
     API_PREFIX: str = "/api"
     HOST: str = "127.0.0.1"

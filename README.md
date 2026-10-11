@@ -1,11 +1,15 @@
 <p align="center">
-  <img src="frontend/public/logo.svg" alt="Kuaishou Video Studio Logo" width="110" height="110" style="border-radius: 20px; box-shadow: 0 10px 30px rgba(255, 94, 58, 0.3);" />
+  <img src="frontend/public/logo.svg" alt="ReelPilot Logo" width="110" height="110" style="border-radius: 20px; box-shadow: 0 10px 30px rgba(255, 94, 58, 0.3);" />
 </p>
 
-<h1 align="center">Kuaishou Video Studio</h1>
+<h1 align="center">ReelPilot</h1>
 
 <p align="center">
-  <strong>High-performance, local-first desktop studio for macOS to download authorized Kuaishou (快手) / Kwai videos, dub with English voice-over tracks, burn subtitles, generate AI captions, and publish directly to Instagram Reels and YouTube Shorts.</strong>
+  <strong>“From raw clips to ready-to-publish content.”</strong>
+</p>
+
+<p align="center">
+  <em>High-performance, local-first macOS desktop studio to download authorized Kuaishou (快手) / Kwai videos, replace Chinese audio with English voice-overs, burn subtitles, generate AI captions, and publish directly to Instagram Reels and YouTube Shorts.</em>
 </p>
 
 <p align="center">
@@ -370,6 +374,14 @@ graphify extract . --code-only && graphify export html
 
 ---
 
-## 📄 License
+## 📄 License & Credits
 
 This project is licensed under the [MIT License](LICENSE). Authorized for lawful video downloading, translation, and creator syndication.
+
+<p align="center">
+  Crafted with ❤️ By <a href="https://github.com/subha-3128" target="_blank" rel="noopener noreferrer">Nubru</a>
+</p>
+
+<p align="center">
+  <small>© 2026 ReelPilot Studio. All rights reserved.</small>
+</p>
