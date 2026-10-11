@@ -217,10 +217,13 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 )
                 return
 
-            # Step 4: Publish Target
+            # Step 4: Publish Target -> Immediately Launch Production
             if step == "pub":
                 settings_dict["publish_target"] = value
                 job.collected_settings = settings_dict
+                job.status = "queued"
+                job.stage = "Queued for processing"
+                job.progress = 5.0
                 db.commit()
 
                 pub_label = {
@@ -230,34 +233,46 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                     "both": "Both Instagram & YouTube",
                 }.get(value, value)
 
-                await query.edit_message_text(
-                    f"📋 *Preflight Confirmation — Job `{job.id[:8]}`*\n\n"
-                    f"• *Audio Policy:* {settings_dict.get('sync_policy')}\n"
-                    f"• *Mute Original:* {'Yes' if settings_dict.get('mute_original') else 'No'}\n"
-                    f"• *Burn Subtitles:* {'Yes (24pt White)' if settings_dict.get('burn_subtitles') else 'No'}\n"
-                    f"• *AI Tone:* {settings_dict.get('ai_tone')}\n"
-                    f"• *Publishing:* {pub_label}\n\n"
-                    f"Ready to launch production pipeline?",
-                    reply_markup=build_confirm_keyboard(job.id),
-                    parse_mode="Markdown",
+                sync_raw = settings_dict.get("sync_policy", "keep_natural_speed")
+                sync_clean = str(sync_raw).replace("_", " ").title()
+                sub_clean = "Yes (24pt White)" if settings_dict.get("burn_subtitles") else "No"
+                tone_clean = str(settings_dict.get("ai_tone", "engaging")).capitalize()
+
+                status_text = (
+                    f"🚀 *Production Launched! — Job `{job.id[:8]}`*\n\n"
+                    f"• *Audio Policy:* {sync_clean}\n"
+                    f"• *Burn Subtitles:* {sub_clean}\n"
+                    f"• *AI Tone:* {tone_clean}\n"
+                    f"• *Destination:* {pub_label}\n\n"
+                    f"⏳ Downloading video from Kuaishou, generating captions, and producing your 9:16 video in the background..."
                 )
+
+                try:
+                    await query.edit_message_text(status_text, parse_mode="Markdown")
+                except Exception:
+                    # Fallback without markdown formatting
+                    plain_text = status_text.replace("*", "").replace("`", "")
+                    await query.edit_message_text(plain_text)
+
+                asyncio.create_task(execute_job_pipeline(job.id, context.bot))
                 return
 
-            # Step 5: Final Confirmation / Cancel
+            # Step 5: Final Confirmation / Cancel (for backwards compatibility)
             if step == "confirm":
                 if value == "start":
-                    job.status = "queued"
-                    job.stage = "Queued for processing"
-                    job.progress = 5.0
-                    db.commit()
+                    if job.status == "awaiting_input":
+                        job.status = "queued"
+                        job.stage = "Queued for processing"
+                        job.progress = 5.0
+                        db.commit()
 
-                    await query.edit_message_text(
-                        f"🚀 *Job `{job.id[:8]}` Queued!*\n\n"
-                        f"Beginning video download and processing in the background...\n"
-                        f"You will receive status updates and the finished video here.",
-                        parse_mode="Markdown",
-                    )
-                    asyncio.create_task(execute_job_pipeline(job.id, context.bot))
+                        await query.edit_message_text(
+                            f"🚀 *Job `{job.id[:8]}` Queued!*\n\n"
+                            f"Beginning video download and processing in the background...\n"
+                            f"You will receive status updates and the finished video here.",
+                            parse_mode="Markdown",
+                        )
+                        asyncio.create_task(execute_job_pipeline(job.id, context.bot))
                 else:
                     job.status = "cancelled"
                     job.stage = "Cancelled by user"

@@ -307,6 +307,9 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
                     db.refresh(pub)
                     if pub.remote_post_url:
                         published_urls.append(f"{p_target.capitalize()}: {pub.remote_post_url}")
+                    else:
+                        reason = pub.error_details or "Credentials not configured in cloud environment"
+                        published_urls.append(f"{p_target.capitalize()}: ⚠️ {reason}")
 
             # --- STEP 7: Completion & Telegram Delivery ---
             job.status = "completed"
