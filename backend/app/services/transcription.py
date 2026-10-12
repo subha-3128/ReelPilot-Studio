@@ -82,7 +82,7 @@ class LocalSpeechTranscriptionProvider(TranscriptionProvider):
                 "id": i + 1,
                 "start": start,
                 "end": end,
-                "text": f"English voice-over commentary segment {i + 1}",
+                "text": f"[Cue {i + 1}]",
             })
         return segments
 

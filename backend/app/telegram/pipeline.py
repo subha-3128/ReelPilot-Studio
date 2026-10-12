@@ -138,7 +138,10 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
                     None,
                     lambda: transcription_service.transcribe_audio(audio_to_transcribe, language="en"),
                 )
-                full_text = " ".join(s.get("text", "") for s in segments)
+                full_text = " ".join(
+                    s.get("text", "") for s in segments 
+                    if not s.get("text", "").startswith("[Cue") and "commentary segment" not in s.get("text", "").lower()
+                ).strip()
                 trans = Transcript(
                     id=str(uuid.uuid4()),
                     video_asset_id=video_asset.id,
@@ -320,18 +323,31 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
 
             # Prepare Telegram Caption
             ig_draft = ai_drafts.get("instagram", {})
-            title = ig_draft.get('title', video_asset.filename)
-            caption = ig_draft.get('caption', '')
-            hashtags = ig_draft.get('hashtags', '')
+            yt_draft = ai_drafts.get("youtube", {})
+
+            clean_fallback_title = metadata_service.clean_title(video_asset.filename)
+            raw_title = (
+                ig_draft.get("title")
+                or yt_draft.get("title")
+                or clean_fallback_title
+            )
+            title = raw_title.replace("#Shorts", "").replace("#shorts", "").strip(" -|")
+
+            caption = (ig_draft.get("caption") or yt_draft.get("description", "")).strip()
+            hashtags = (ig_draft.get("hashtags") or yt_draft.get("hashtags", "")).strip()
 
             caption_text = (
                 f"🎬 *ReelPilot Studio — Production Complete*\n\n"
-                f"📌 *Title:* {title}\n"
-                f"📝 *Caption:* {caption[:240]}...\n\n"
-                f"🏷️ {hashtags[:120]}\n"
+                f"📌 *Title:* {title}\n\n"
+                f"📝 *Caption:*\n{caption}\n\n"
+                f"🏷️ {hashtags}\n"
             )
             if published_urls:
                 caption_text += "\n🚀 *Distribution Status:*\n" + "\n".join(published_urls)
+
+            # Keep message strictly under Telegram 1024-char limit
+            if len(caption_text) > 1000:
+                caption_text = caption_text[:990] + "..."
 
             file_size_mb = export_path.stat().st_size / (1024 * 1024)
 

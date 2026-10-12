@@ -86,6 +86,7 @@ def test_metadata_generation():
     )
     assert "instagram" in drafts
     assert "youtube" in drafts
+    assert len(drafts["instagram"]["title"]) > 0
     assert len(drafts["youtube"]["title"]) > 0
     assert len(drafts["instagram"]["caption"]) > 0
     assert len(drafts["instagram"]["hashtags"]) > 0
