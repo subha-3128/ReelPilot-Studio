@@ -232,6 +232,18 @@ async def retry_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db.close()
 
 @require_auth
+async def purge_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /clear or /purge command: immediately wipe all reels and media files."""
+    from app.services.scheduler import scheduler
+    scheduler._clean_expired_media(max_age_seconds=0)
+    await update.message.reply_text(
+        "🧹 *ReelPilot Studio — Storage Cleared*\n\n"
+        "All reels, source downloads, voiceovers, and temporary files have been permanently cleared from Render storage.\n"
+        "Your database records and publication logs remain intact.",
+        parse_mode="Markdown",
+    )
+
+@require_auth
 async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Detect and process video URLs in user messages."""
     text = update.message.text or ""

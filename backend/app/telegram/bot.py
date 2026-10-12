@@ -22,6 +22,7 @@ from app.telegram.handlers import (
     jobs_command,
     cancel_command,
     retry_command,
+    purge_command,
     text_message_handler,
     callback_query_handler,
 )
@@ -62,6 +63,7 @@ class TelegramBotManager:
             self.application.add_handler(CommandHandler("jobs", jobs_command))
             self.application.add_handler(CommandHandler("cancel", cancel_command))
             self.application.add_handler(CommandHandler("retry", retry_command))
+            self.application.add_handler(CommandHandler(["purge", "clear"], purge_command))
 
             # Register Callback Query & Text Message Handlers
             self.application.add_handler(CallbackQueryHandler(callback_query_handler))

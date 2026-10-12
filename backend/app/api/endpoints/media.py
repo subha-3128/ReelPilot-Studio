@@ -68,3 +68,10 @@ def stream_file_by_name(filename: str, request: Request):
         if candidate.exists() and candidate.is_file() and str(candidate).startswith(str(storage_root)):
             return FileResponse(candidate, media_type="video/mp4")
     raise HTTPException(status_code=404, detail="Media file not found")
+
+@router.post("/purge")
+def purge_media_storage():
+    """Immediately purge all reels, derivatives, and temporary media files."""
+    from app.services.scheduler import scheduler
+    scheduler._clean_expired_media(max_age_seconds=0)
+    return {"success": True, "message": "Storage successfully cleared of all media files."}
