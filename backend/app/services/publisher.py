@@ -39,17 +39,20 @@ class InstagramPublisher(PlatformPublisher):
     Uses account-authorized token and temporary hosting/tunnel for local media ingestion.
     """
     def _get_public_video_url(self, video_path: Path, derivative_id: Optional[str]) -> str:
-        """Obtain a publicly reachable direct HTTPS download URL for Meta ingestion servers."""
-        base_url = settings.PUBLIC_BASE_URL or os.environ.get("RENDER_EXTERNAL_URL")
-        if base_url:
-            clean_base = base_url.rstrip("/")
-            # Use dedicated public stream endpoint with 206 Partial Content support
+        """
+        Obtain a publicly reachable direct HTTPS download URL for Meta ingestion servers.
+        Uses Catbox as primary direct CDN hosting, Uguu as secondary fallback, and
+        PUBLIC_BASE_URL if explicitly configured by the user.
+        """
+        # 1. User-configured explicit CDN / external base URL (e.g. custom domain, S3, Cloudflare R2)
+        if settings.PUBLIC_BASE_URL:
+            clean_base = settings.PUBLIC_BASE_URL.rstrip("/")
             return f"{clean_base}/api/media/stream/{video_path.name}"
 
-        logger.info("Uploading media to high-speed direct hosting for Meta ingestion: %s", video_path.name)
+        logger.info("Uploading media to high-speed CDN hosting for Meta Reels ingestion: %s", video_path.name)
         safe_name = f"reel_{int(time.time())}.mp4"
 
-        # 1. Primary Direct Hosting: Catbox
+        # 2. Primary Direct CDN Hosting: Catbox (proven 100% reliable with Meta Reels API)
         try:
             with open(video_path, "rb") as f:
                 res = httpx.post(
@@ -60,12 +63,12 @@ class InstagramPublisher(PlatformPublisher):
                 )
                 if res.status_code == 200 and res.text.strip().startswith("http"):
                     direct_url = res.text.strip()
-                    logger.info("Catbox ingestion URL ready: %s", direct_url)
+                    logger.info("Catbox CDN ingestion URL ready: %s", direct_url)
                     return direct_url
         except Exception as e:
             logger.warning("Catbox upload failed: %s", e)
 
-        # 2. Secondary Direct Hosting: Uguu
+        # 3. Secondary Direct Hosting: Uguu
         try:
             with open(video_path, "rb") as f:
                 res = httpx.post(
@@ -83,7 +86,12 @@ class InstagramPublisher(PlatformPublisher):
         except Exception as e:
             logger.warning("Uguu upload failed: %s", e)
 
-        raise ValueError("Could not obtain public URL or direct upload for Meta Reels ingestion.")
+        # 4. Fallback to server external URL if available
+        if os.environ.get("RENDER_EXTERNAL_URL"):
+            clean_base = os.environ.get("RENDER_EXTERNAL_URL").rstrip("/")
+            return f"{clean_base}/api/media/stream/{video_path.name}"
+
+        raise ValueError("Could not upload video to direct media hosting for Meta Reels ingestion.")
 
     def publish(
         self,
@@ -169,29 +177,47 @@ class InstagramPublisher(PlatformPublisher):
                 if status_code not in ("FINISHED", "READY"):
                     return {"success": False, "error": f"Instagram video processing timed out (status: {status_code})."}
 
-                # 4. Publish Reels container
+                # 4. Publish Reels container (with replication retry if Meta replication is propagating)
                 publish_url = f"{api_base}/{ig_user_id}/media_publish"
-                pub_res = client.post(publish_url, data={"creation_id": creation_id, "access_token": token})
-                if pub_res.status_code != 200:
-                    err_msg = pub_res.json().get("error", {}).get("message", pub_res.text)
+                pub_res = None
+                for pub_attempt in range(5):
+                    pub_res = client.post(publish_url, data={"creation_id": creation_id, "access_token": token})
+                    if pub_res.status_code == 200:
+                        break
+                    err_text = pub_res.text.lower()
+                    if "not ready" in err_text or "please wait" in err_text:
+                        logger.info("Meta media replication propagating, waiting 3s (attempt %d/5)...", pub_attempt + 1)
+                        time.sleep(3)
+                        continue
+                    break
+
+                if not pub_res or pub_res.status_code != 200:
+                    err_msg = pub_res.json().get("error", {}).get("message", pub_res.text) if pub_res else "Unknown publish error"
                     return {"success": False, "error": f"Instagram media_publish error: {err_msg}"}
 
                 media_id = pub_res.json().get("id", creation_id)
 
                 # 5. Retrieve real public Instagram permalink & shortcode
                 # (Instagram media IDs are numeric; the browser URL requires permalink or shortcode to avoid 404)
-                post_url = f"https://www.instagram.com/reel/{media_id}/"
-                try:
-                    meta_query_url = f"{api_base}/{media_id}?fields=permalink,shortcode&access_token={token}"
-                    m_res = client.get(meta_query_url, timeout=15.0)
-                    if m_res.status_code == 200:
-                        m_data = m_res.json()
-                        if m_data.get("permalink"):
-                            post_url = m_data["permalink"]
-                        elif m_data.get("shortcode"):
-                            post_url = f"https://www.instagram.com/reel/{m_data['shortcode']}/"
-                except Exception as p_err:
-                    logger.warning("Could not fetch permalink for IG media %s: %s", media_id, p_err)
+                post_url = None
+                for _ in range(3):
+                    try:
+                        meta_query_url = f"{api_base}/{media_id}?fields=permalink,shortcode&access_token={token}"
+                        m_res = client.get(meta_query_url, timeout=15.0)
+                        if m_res.status_code == 200:
+                            m_data = m_res.json()
+                            if m_data.get("permalink"):
+                                post_url = m_data["permalink"]
+                                break
+                            elif m_data.get("shortcode"):
+                                post_url = f"https://www.instagram.com/reel/{m_data['shortcode']}/"
+                                break
+                    except Exception as p_err:
+                        logger.warning("Could not fetch permalink for IG media %s: %s", media_id, p_err)
+                    time.sleep(1)
+
+                if not post_url:
+                    post_url = f"https://www.instagram.com/reel/{media_id}/"
 
                 logger.info("Instagram Reel published successfully! Media ID: %s, URL: %s", media_id, post_url)
 

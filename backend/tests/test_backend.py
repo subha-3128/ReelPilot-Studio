@@ -210,11 +210,10 @@ def test_instagram_publisher_share_to_feed_and_permalink(monkeypatch):
     dummy_path = settings.ORIGINALS_DIR / "dummy_ig.mp4"
     dummy_path.write_bytes(b"dummy")
 
-    # Set mock Render environment URL
-    monkeypatch.setenv("RENDER_EXTERNAL_URL", "https://reelpilot-test.onrender.com")
-
-    url = ig._get_public_video_url(dummy_path, None)
-    assert url == "https://reelpilot-test.onrender.com/api/media/stream/dummy_ig.mp4"
+    # Test user-configured explicit public base URL
+    with patch("app.core.config.settings.PUBLIC_BASE_URL", "https://reelpilot-test.onrender.com"):
+        url = ig._get_public_video_url(dummy_path, None)
+        assert url == "https://reelpilot-test.onrender.com/api/media/stream/dummy_ig.mp4"
 
     # Test publish container payload and permalink lookup
     captured_payloads = []
