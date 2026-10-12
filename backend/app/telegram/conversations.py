@@ -28,9 +28,9 @@ def get_or_create_user_pref(db: Session, user_id: str) -> TelegramUserPreference
         pref = TelegramUserPreference(
             telegram_user_id=user_id,
             workflow_mode="interactive",
-            default_sync_policy="keep_natural_speed",
-            default_mute_original=True,
-            default_burn_subtitles=True,
+            default_sync_policy="keep_original",
+            default_mute_original=False,
+            default_burn_subtitles=False,
             default_subtitle_font_size=24,
             default_ai_tone="engaging",
             default_publish_target="none",
@@ -53,8 +53,12 @@ async def handle_video_url_submission(update: Update, context: ContextTypes.DEFA
         normalized_url = validate_and_normalize_url(url)
     except Exception as e:
         await update.message.reply_text(
-            f"❌ *Unsupported or Invalid URL*\n\n{e}\n\n"
-            f"Supported services: Instagram Reels, Kuaishou, and Kwai links (e.g., `instagram.com/reel/...`, `v.kuaishou.com`, `kwai.com`).",
+            f"⚠️ *Invalid or Unsupported Video URL*\n\n"
+            f"{e}\n\n"
+            f"Please provide an authorized Instagram Reel, Kuaishou, or Kwai link:\n"
+            f"• `https://www.instagram.com/reel/Cxxxxxx/`\n"
+            f"• `https://v.kuaishou.com/xxxxxx`\n"
+            f"• `https://kwai.com/xxxxxx`",
             parse_mode="Markdown",
         )
         return
@@ -63,6 +67,14 @@ async def handle_video_url_submission(update: Update, context: ContextTypes.DEFA
     try:
         pref = get_or_create_user_pref(db, str(user.id))
         workflow_mode = pref.workflow_mode
+
+        # Default settings: Always preserve original audio, no subtitle burn
+        initial_settings = {
+            "sync_policy": "keep_original",
+            "mute_original": False,
+            "burn_subtitles": False,
+            "font_size": 24,
+        }
 
         # Create persistent job in database
         job = ProcessingJob(
@@ -74,7 +86,7 @@ async def handle_video_url_submission(update: Update, context: ContextTypes.DEFA
             telegram_user_id=str(user.id),
             workflow_mode=workflow_mode,
             source_url=normalized_url,
-            collected_settings={},
+            collected_settings=initial_settings,
         )
         db.add(job)
         db.commit()
@@ -83,24 +95,32 @@ async def handle_video_url_submission(update: Update, context: ContextTypes.DEFA
         if workflow_mode == "automatic":
             # Apply saved user preferences directly
             job.collected_settings = {
-                "sync_policy": pref.default_sync_policy,
-                "mute_original": pref.default_mute_original,
-                "burn_subtitles": pref.default_burn_subtitles,
-                "font_size": pref.default_subtitle_font_size,
-                "ai_tone": pref.default_ai_tone,
-                "publish_target": pref.default_publish_target,
+                "sync_policy": "keep_original",
+                "mute_original": False,
+                "burn_subtitles": False,
+                "font_size": 24,
+                "ai_tone": pref.default_ai_tone or "engaging",
+                "publish_target": pref.default_publish_target or "none",
             }
             job.status = "queued"
             db.commit()
 
+            target_label = {
+                "none": "Direct Delivery Only",
+                "instagram": "Instagram Reels",
+                "youtube": "YouTube Shorts",
+                "both": "Instagram Reels + YouTube Shorts",
+            }.get(pref.default_publish_target, pref.default_publish_target or "Direct Delivery Only")
+
             status_msg = await update.message.reply_text(
-                f"⚡ *Automatic Mode Activated*\n\n"
-                f"Job ID: `{job.id[:8]}`\n"
-                f"Source: `{normalized_url[:40]}...`\n"
-                f"Sync Policy: `{pref.default_sync_policy}`\n"
-                f"Burn Subtitles: `{'Yes' if pref.default_burn_subtitles else 'No'}`\n"
-                f"Publishing: `{pref.default_publish_target}`\n\n"
-                f"⏳ Starting background pipeline...",
+                f"🎬 *ReelPilot Studio — Production Initiated*\n\n"
+                f"• *Job ID:* `{job.id[:8]}`\n"
+                f"• *Mode:* Automatic\n"
+                f"• *Audio Policy:* Original Audio Preserved\n"
+                f"• *Subtitles:* Unburned\n"
+                f"• *AI Tone:* {str(pref.default_ai_tone or 'engaging').capitalize()}\n"
+                f"• *Target Channel:* {target_label}\n\n"
+                f"⏳ Initializing background processing pipeline...",
                 parse_mode="Markdown",
             )
             job.telegram_message_id = status_msg.message_id
@@ -110,12 +130,14 @@ async def handle_video_url_submission(update: Update, context: ContextTypes.DEFA
             asyncio.create_task(execute_job_pipeline(job.id, context.bot))
 
         else:
-            # Interactive Mode: Start Step 1
+            # Interactive Mode: Start directly with Tone (Step 1 of 2)
             msg = await update.message.reply_text(
-                f"🎬 *New Video Job Created*\n\n"
-                f"Job ID: `{job.id[:8]}`\n\n"
-                f"Step 1 of 4: Select *Audio Synchronization Policy*:",
-                reply_markup=build_audio_policy_keyboard(job.id),
+                f"🎬 *ReelPilot Studio — New Video Job*\n\n"
+                f"• *Job ID:* `{job.id[:8]}`\n"
+                f"• *Audio Policy:* Original Audio Preserved\n"
+                f"• *Subtitles:* None (Clean Video)\n\n"
+                f"*Step 1 of 2:* Select AI Metadata & Caption Tone:",
+                reply_markup=build_tone_keyboard(job.id),
                 parse_mode="Markdown",
             )
             job.telegram_message_id = msg.message_id
@@ -146,9 +168,10 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             pref.workflow_mode = new_mode
             db.commit()
             await query.edit_message_text(
-                f"⚙️ Operating mode updated to: *{new_mode.capitalize()}*\n\n"
-                f"• *Interactive*: Asks studio questions for every video.\n"
-                f"• *Automatic*: Uses your saved preferences immediately.",
+                f"⚙️ *Workflow Mode Updated*\n\n"
+                f"Active Mode: *{new_mode.capitalize()}*\n\n"
+                f"• *Interactive:* Prompts for metadata tone and distribution channel for each video.\n"
+                f"• *Automatic:* Processes incoming videos immediately using default studio preferences.",
                 reply_markup=build_mode_keyboard(new_mode),
                 parse_mode="Markdown",
             )
@@ -163,12 +186,12 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
             job = db.query(ProcessingJob).filter(ProcessingJob.id == job_id).first()
             if not job:
-                await query.edit_message_text("❌ Job not found or already purged.")
+                await query.edit_message_text("⚠️ Job not found or expired from record.")
                 return
 
             settings_dict = dict(job.collected_settings or {})
 
-            # Step 1: Audio Policy
+            # Step 1 (Legacy / Direct): Audio Policy
             if step == "audio":
                 if value == "keep_original":
                     settings_dict["sync_policy"] = "keep_original"
@@ -181,14 +204,15 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 db.commit()
 
                 await query.edit_message_text(
-                    f"🎬 Job `{job.id[:8]}` — Audio: *{value}*\n\n"
-                    f"Step 2 of 4: *Burn timestamped English subtitles* into video derivative?",
-                    reply_markup=build_subtitles_keyboard(job.id),
+                    f"🎬 *ReelPilot Studio — Job `{job.id[:8]}`*\n\n"
+                    f"• *Audio Policy:* {value}\n\n"
+                    f"Select AI Metadata & Caption Tone:",
+                    reply_markup=build_tone_keyboard(job.id),
                     parse_mode="Markdown",
                 )
                 return
 
-            # Step 2: Subtitle Burn
+            # Step 2 (Legacy / Direct): Subtitle Burn
             if step == "sub":
                 settings_dict["burn_subtitles"] = (value == "burn_yes")
                 settings_dict["font_size"] = 24
@@ -196,61 +220,69 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 db.commit()
 
                 await query.edit_message_text(
-                    f"🎬 Job `{job.id[:8]}` — Subtitles: *{'Burned' if value == 'burn_yes' else 'No Burn'}*\n\n"
-                    f"Step 3 of 4: Select AI Metadata copy *Tone* (Gemini 3.8 Flash):",
+                    f"🎬 *ReelPilot Studio — Job `{job.id[:8]}`*\n\n"
+                    f"• *Subtitles:* {'Burned' if value == 'burn_yes' else 'Unburned'}\n\n"
+                    f"Select AI Metadata & Caption Tone:",
                     reply_markup=build_tone_keyboard(job.id),
                     parse_mode="Markdown",
                 )
                 return
 
-            # Step 3: AI Tone
+            # Step 1 of 2: AI Tone
             if step == "tone":
                 settings_dict["ai_tone"] = value
+                settings_dict["sync_policy"] = "keep_original"
+                settings_dict["mute_original"] = False
+                settings_dict["burn_subtitles"] = False
+                settings_dict["font_size"] = 24
                 job.collected_settings = settings_dict
                 db.commit()
 
                 await query.edit_message_text(
-                    f"🎬 Job `{job.id[:8]}` — AI Tone: *{value.capitalize()}*\n\n"
-                    f"Step 4 of 4: Select *Target Publishing Destination*:",
+                    f"🎬 *ReelPilot Studio — Job `{job.id[:8]}`*\n\n"
+                    f"• *Selected Tone:* {value.capitalize()}\n\n"
+                    f"*Step 2 of 2:* Select Target Distribution Channel:",
                     reply_markup=build_publish_keyboard(job.id),
                     parse_mode="Markdown",
                 )
                 return
 
-            # Step 4: Publish Target -> Immediately Launch Production
+            # Step 2 of 2: Publish Target -> Immediately Launch Production
             if step == "pub":
                 settings_dict["publish_target"] = value
+                settings_dict["sync_policy"] = "keep_original"
+                settings_dict["mute_original"] = False
+                settings_dict["burn_subtitles"] = False
+                settings_dict["font_size"] = 24
+
                 job.collected_settings = settings_dict
                 job.status = "queued"
-                job.stage = "Queued for processing"
+                job.stage = "Queued for pipeline execution"
                 job.progress = 5.0
                 db.commit()
 
                 pub_label = {
-                    "none": "Save / Export Video Only",
+                    "none": "Direct Delivery Only",
                     "instagram": "Instagram Reels",
                     "youtube": "YouTube Shorts",
-                    "both": "Both Instagram & YouTube",
+                    "both": "Instagram Reels & YouTube Shorts",
                 }.get(value, value)
 
-                sync_raw = settings_dict.get("sync_policy", "keep_natural_speed")
-                sync_clean = str(sync_raw).replace("_", " ").title()
-                sub_clean = "Yes (24pt White)" if settings_dict.get("burn_subtitles") else "No"
                 tone_clean = str(settings_dict.get("ai_tone", "engaging")).capitalize()
 
                 status_text = (
-                    f"🚀 *Production Launched! — Job `{job.id[:8]}`*\n\n"
-                    f"• *Audio Policy:* {sync_clean}\n"
-                    f"• *Burn Subtitles:* {sub_clean}\n"
+                    f"🚀 *ReelPilot Studio — Production Launched*\n\n"
+                    f"• *Job ID:* `{job.id[:8]}`\n"
+                    f"• *Audio:* Original Audio Preserved\n"
+                    f"• *Subtitles:* Unburned\n"
                     f"• *AI Tone:* {tone_clean}\n"
                     f"• *Destination:* {pub_label}\n\n"
-                    f"⏳ Downloading video from Kuaishou, generating captions, and producing your 9:16 video in the background..."
+                    f"⏳ Ingesting source media, synthesizing AI captions, and rendering video in the background..."
                 )
 
                 try:
                     await query.edit_message_text(status_text, parse_mode="Markdown")
                 except Exception:
-                    # Fallback without markdown formatting
                     plain_text = status_text.replace("*", "").replace("`", "")
                     await query.edit_message_text(plain_text)
 
@@ -262,14 +294,13 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 if value == "start":
                     if job.status == "awaiting_input":
                         job.status = "queued"
-                        job.stage = "Queued for processing"
+                        job.stage = "Queued for pipeline execution"
                         job.progress = 5.0
                         db.commit()
 
                         await query.edit_message_text(
-                            f"🚀 *Job `{job.id[:8]}` Queued!*\n\n"
-                            f"Beginning video download and processing in the background...\n"
-                            f"You will receive status updates and the finished video here.",
+                            f"🚀 *ReelPilot Studio — Job `{job.id[:8]}` Queued*\n\n"
+                            f"Pipeline execution initiated in background. Real-time updates and output will be delivered here.",
                             parse_mode="Markdown",
                         )
                         asyncio.create_task(execute_job_pipeline(job.id, context.bot))
@@ -277,7 +308,11 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                     job.status = "cancelled"
                     job.stage = "Cancelled by user"
                     db.commit()
-                    await query.edit_message_text(f"❌ Job `{job.id[:8]}` was cancelled.")
+                    await query.edit_message_text(
+                        f"🛑 *ReelPilot Studio — Job Cancelled*\n\n"
+                        f"Job `{job.id[:8]}` has been cancelled.",
+                        parse_mode="Markdown",
+                    )
                 return
 
             # Retry handler
@@ -288,8 +323,9 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 db.commit()
 
                 await query.edit_message_text(
-                    f"🔄 Retrying Job `{job.id[:8]}` (Attempt {job.retry_count})...\n"
-                    f"Queued for processing in background.",
+                    f"🔄 *ReelPilot Studio — Retrying Job `{job.id[:8]}`*\n\n"
+                    f"Attempt {job.retry_count} queued for background execution.",
+                    parse_mode="Markdown",
                 )
                 asyncio.create_task(execute_job_pipeline(job.id, context.bot))
                 return

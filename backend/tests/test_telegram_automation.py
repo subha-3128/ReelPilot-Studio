@@ -68,7 +68,9 @@ def test_telegram_user_preferences_crud():
         user_id = str(uuid.uuid4())[:12]
         pref = get_or_create_user_pref(db, user_id)
         assert pref.workflow_mode == "interactive"
-        assert pref.default_sync_policy == "keep_natural_speed"
+        assert pref.default_sync_policy == "keep_original"
+        assert pref.default_burn_subtitles is False
+        assert pref.default_mute_original is False
 
         pref.workflow_mode = "automatic"
         pref.default_publish_target = "both"
@@ -83,7 +85,7 @@ def test_telegram_user_preferences_crud():
 
 @pytest.mark.asyncio
 async def test_video_url_submission_interactive():
-    """Submitting a valid video link in interactive mode should create job in awaiting_input state."""
+    """Submitting a valid video link in interactive mode should create job with original audio and no burn, prompting Step 1 of 2."""
     db = SessionLocal()
     try:
         user_id = 555111
@@ -124,8 +126,10 @@ async def test_video_url_submission_interactive():
         assert job is not None
         assert job.status == "awaiting_input"
         assert job.source_url == valid_url
+        assert job.collected_settings.get("sync_policy") == "keep_original"
+        assert job.collected_settings.get("burn_subtitles") is False
         assert mock_msg.reply_text.called
-        assert "Step 1 of 4" in mock_msg.reply_text.call_args[0][0]
+        assert "Step 1 of 2" in mock_msg.reply_text.call_args[0][0]
     finally:
         db.close()
 
@@ -152,13 +156,13 @@ async def test_video_url_submission_invalid_url():
         job = db.query(ProcessingJob).filter(ProcessingJob.source_url == invalid_url).first()
         assert job is None
         assert mock_msg.reply_text.called
-        assert "Unsupported or Invalid URL" in mock_msg.reply_text.call_args[0][0]
+        assert "Invalid or Unsupported" in mock_msg.reply_text.call_args[0][0]
     finally:
         db.close()
 
 @pytest.mark.asyncio
 async def test_telegram_question_callback_flow():
-    """Verify complete step-by-step interactive question and callback progression."""
+    """Verify complete streamlined 2-step interactive question and callback progression."""
     db = SessionLocal()
     try:
         job_id = str(uuid.uuid4())
@@ -169,7 +173,12 @@ async def test_telegram_question_callback_flow():
             telegram_chat_id="123",
             telegram_user_id="456",
             source_url="https://v.kuaishou.com/test",
-            collected_settings={},
+            collected_settings={
+                "sync_policy": "keep_original",
+                "mute_original": False,
+                "burn_subtitles": False,
+                "font_size": 24,
+            },
         )
         db.add(job)
         db.commit()
@@ -180,35 +189,20 @@ async def test_telegram_question_callback_flow():
         mock_update.effective_user = MagicMock(id=456)
         mock_update.effective_chat = MagicMock(id=123)
 
-        # Step 1: Answer Audio
-        mock_query.data = f"q:audio:{job_id}:keep_natural_speed"
-        await handle_callback_query(mock_update, MagicMock())
-        db.refresh(job)
-        assert job.collected_settings.get("sync_policy") == "keep_natural_speed"
-
-        # Step 2: Answer Subtitle
-        mock_query.data = f"q:sub:{job_id}:burn_yes"
-        await handle_callback_query(mock_update, MagicMock())
-        db.refresh(job)
-        assert job.collected_settings.get("burn_subtitles") is True
-
-        # Step 3: Answer Tone
+        # Step 1 of 2: Answer Tone
         mock_query.data = f"q:tone:{job_id}:engaging"
         await handle_callback_query(mock_update, MagicMock())
         db.refresh(job)
         assert job.collected_settings.get("ai_tone") == "engaging"
+        assert job.collected_settings.get("sync_policy") == "keep_original"
+        assert job.collected_settings.get("burn_subtitles") is False
 
-        # Step 4: Answer Publish Target
-        mock_query.data = f"q:pub:{job_id}:instagram"
-        await handle_callback_query(mock_update, MagicMock())
-        db.refresh(job)
-        assert job.collected_settings.get("publish_target") == "instagram"
-
-        # Step 5: Confirm and Launch
+        # Step 2 of 2: Answer Publish Target -> Immediately Queues & Launches
         with patch("app.telegram.conversations.execute_job_pipeline", new_callable=AsyncMock) as mock_pipe:
-            mock_query.data = f"q:confirm:{job_id}:start"
+            mock_query.data = f"q:pub:{job_id}:instagram"
             await handle_callback_query(mock_update, MagicMock())
             db.refresh(job)
+            assert job.collected_settings.get("publish_target") == "instagram"
             assert job.status == "queued"
     finally:
         db.close()

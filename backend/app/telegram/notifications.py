@@ -54,30 +54,31 @@ async def safe_send_message(
 
 def format_job_status_text(job) -> str:
     """Produce clean, formatted status text for a given processing job."""
-    stage_emojis = {
-        "awaiting_input": "[Awaiting Settings]",
-        "queued": "[Queued]",
-        "downloading": "[1/5 Downloading Source]",
-        "transcribing": "[2/5 Transcribing Audio]",
-        "burning_subtitles": "[3/5 Burning Subtitles]",
-        "analyzing": "[4/5 Generating AI Metadata]",
-        "exporting": "[5/5 Exporting Final MP4]",
-        "ready": "[Ready]",
-        "publishing": "[Publishing to Platforms]",
-        "completed": "[Completed]",
-        "failed": "[Failed]",
-        "cancelled": "[Cancelled]",
+    stage_labels = {
+        "awaiting_input": "Awaiting Parameters",
+        "queued": "Queued in Pipeline",
+        "downloading": "1/4 Downloading Source Stream",
+        "transcribing": "2/4 Audio Analysis & Speech Recognition",
+        "burning_subtitles": "Processing Video Stream",
+        "analyzing": "3/4 Synthesizing AI Captions & Metadata",
+        "exporting": "4/4 Rendering Production Export",
+        "ready": "Production Complete",
+        "publishing": "Publishing to Target Channels",
+        "completed": "Delivered",
+        "failed": "Execution Failed",
+        "cancelled": "Cancelled",
     }
     
-    header = stage_emojis.get(job.status, f"[{job.status.upper()}]")
+    header = stage_labels.get(job.status, job.status.capitalize())
     progress_bar = f"{int(job.progress)}%" if job.progress else "0%"
     
     text = (
-        f"ReelPilot Job: {job.id[:8]}\n"
+        f"ReelPilot Studio — Production Status\n\n"
+        f"Job ID: {job.id[:8]}\n"
         f"Status: {header}\n"
         f"Progress: {progress_bar}\n"
         f"Stage: {job.stage or 'Processing'}\n"
     )
     if job.error_message:
-        text += f"\nError: {job.error_message}\n"
+        text += f"\nError Details: {job.error_message}\n"
     return text

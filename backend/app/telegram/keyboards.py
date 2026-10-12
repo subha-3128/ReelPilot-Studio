@@ -68,7 +68,7 @@ def build_tone_keyboard(job_id: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton("Humorous", callback_data=f"q:tone:{job_id}:humorous"),
         ],
         [
-            InlineKeyboardButton("Cancel", callback_data=f"q:confirm:{job_id}:cancel")
+            InlineKeyboardButton("Cancel Production", callback_data=f"q:confirm:{job_id}:cancel")
         ],
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -77,17 +77,17 @@ def build_publish_keyboard(job_id: str) -> InlineKeyboardMarkup:
     """Ask target social publishing destination."""
     keyboard = [
         [
-            InlineKeyboardButton("Save / Export Only", callback_data=f"q:pub:{job_id}:none"),
+            InlineKeyboardButton("Direct Delivery Only", callback_data=f"q:pub:{job_id}:none"),
         ],
         [
             InlineKeyboardButton("Instagram Reels", callback_data=f"q:pub:{job_id}:instagram"),
             InlineKeyboardButton("YouTube Shorts", callback_data=f"q:pub:{job_id}:youtube"),
         ],
         [
-            InlineKeyboardButton("Both (IG + YouTube)", callback_data=f"q:pub:{job_id}:both"),
+            InlineKeyboardButton("Both (Instagram + YouTube)", callback_data=f"q:pub:{job_id}:both"),
         ],
         [
-            InlineKeyboardButton("Cancel", callback_data=f"q:confirm:{job_id}:cancel")
+            InlineKeyboardButton("Cancel Production", callback_data=f"q:confirm:{job_id}:cancel")
         ],
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -97,7 +97,7 @@ def build_confirm_keyboard(job_id: str) -> InlineKeyboardMarkup:
     keyboard = [
         [
             InlineKeyboardButton("Start Production", callback_data=f"q:confirm:{job_id}:start"),
-            InlineKeyboardButton("Cancel", callback_data=f"q:confirm:{job_id}:cancel"),
+            InlineKeyboardButton("Cancel Production", callback_data=f"q:confirm:{job_id}:cancel"),
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -106,7 +106,8 @@ def build_retry_keyboard(job_id: str) -> InlineKeyboardMarkup:
     """Retry action button on failed job."""
     keyboard = [
         [
-            InlineKeyboardButton("Retry Job", callback_data=f"q:retry:{job_id}")
+            InlineKeyboardButton("Retry Production", callback_data=f"q:retry:{job_id}:run"),
+            InlineKeyboardButton("Dismiss", callback_data=f"q:confirm:{job_id}:cancel"),
         ]
     ]
     return InlineKeyboardMarkup(keyboard)

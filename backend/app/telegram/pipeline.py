@@ -51,7 +51,7 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
 
             # --- STEP 1: Download Source Video ---
             job.status = "downloading"
-            job.stage = "Downloading source video stream"
+            job.stage = "Downloading high-resolution source stream"
             job.progress = 15.0
             db.commit()
 
@@ -72,7 +72,7 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
 
             # --- STEP 2: Audio & Voice-over Processing ---
             job.status = "transcribing"
-            job.stage = "Analyzing audio & transcribing speech"
+            job.stage = "Transcribing audio and analyzing speech"
             job.progress = 35.0
             db.commit()
 
@@ -80,9 +80,9 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
                 await safe_edit_message(bot, chat_id, msg_id, format_job_status_text(job))
 
             # Determine audio source & sync policy
-            sync_policy = user_settings.get("sync_policy", "keep_natural_speed")
-            mute_original = user_settings.get("mute_original", True)
-            burn_subtitles = user_settings.get("burn_subtitles", True)
+            sync_policy = user_settings.get("sync_policy", "keep_original")
+            mute_original = user_settings.get("mute_original", False)
+            burn_subtitles = user_settings.get("burn_subtitles", False)
             font_size = user_settings.get("font_size", 24)
             ai_tone = user_settings.get("ai_tone", "engaging")
             publish_target = user_settings.get("publish_target", "none")
@@ -201,7 +201,7 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
 
             # --- STEP 4: AI Metadata Generation ---
             job.status = "analyzing"
-            job.stage = "Generating viral titles & hashtags via Gemini"
+            job.stage = "Synthesizing AI headlines and metadata via Gemini"
             job.progress = 75.0
             db.commit()
 
@@ -238,7 +238,7 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
 
             # --- STEP 5: Export Final Derivative ---
             job.status = "exporting"
-            job.stage = "Rendering final 9:16 export derivative"
+            job.stage = "Rendering production 9:16 export derivative"
             job.progress = 90.0
             db.commit()
 
@@ -277,7 +277,7 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
             published_urls = []
             if publish_target in ("instagram", "youtube", "both"):
                 job.status = "publishing"
-                job.stage = f"Publishing to {publish_target}"
+                job.stage = f"Publishing to {publish_target.title()}"
                 job.progress = 95.0
                 db.commit()
 
@@ -308,26 +308,30 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
                     if pub.remote_post_url:
                         published_urls.append(f"{p_target.capitalize()}: {pub.remote_post_url}")
                     else:
-                        reason = pub.error_details or "Credentials not configured in cloud environment"
+                        reason = pub.error_details or "Credentials not configured in environment"
                         published_urls.append(f"{p_target.capitalize()}: ⚠️ {reason}")
 
             # --- STEP 7: Completion & Telegram Delivery ---
             job.status = "completed"
-            job.stage = "Video ready and delivered"
+            job.stage = "Production completed and delivered"
             job.progress = 100.0
             job.published_platforms = published_urls
             db.commit()
 
             # Prepare Telegram Caption
             ig_draft = ai_drafts.get("instagram", {})
+            title = ig_draft.get('title', video_asset.filename)
+            caption = ig_draft.get('caption', '')
+            hashtags = ig_draft.get('hashtags', '')
+
             caption_text = (
-                f"🎬 *ReelPilot Video Ready!*\n\n"
-                f"📌 *Title:* {ig_draft.get('title', video_asset.filename)}\n"
-                f"📝 *Caption:* {ig_draft.get('caption', '')[:200]}...\n\n"
-                f"🏷️ {ig_draft.get('hashtags', '')[:100]}\n"
+                f"🎬 *ReelPilot Studio — Production Complete*\n\n"
+                f"📌 *Title:* {title}\n"
+                f"📝 *Caption:* {caption[:240]}...\n\n"
+                f"🏷️ {hashtags[:120]}\n"
             )
             if published_urls:
-                caption_text += "\n🚀 *Published To:*\n" + "\n".join(published_urls)
+                caption_text += "\n🚀 *Distribution Status:*\n" + "\n".join(published_urls)
 
             file_size_mb = export_path.stat().st_size / (1024 * 1024)
 
@@ -348,18 +352,20 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
                         await bot.send_message(
                             chat_id=chat_id,
                             text=(
-                                f"✅ Video generated ({file_size_mb:.1f} MB), but Telegram delivery failed:\n"
+                                f"✅ *ReelPilot Studio — Media Generated*\n\n"
+                                f"File rendered ({file_size_mb:.1f} MB), but Telegram stream encountered an error:\n"
                                 f"{delivery_err}\n\n"
-                                f"Local file saved at: {export_path.name}"
+                                f"Local file saved at: `{export_path.name}`"
                             ),
+                            parse_mode="Markdown",
                         )
                 else:
                     # File exceeds Telegram Bot 50MB limit
                     await bot.send_message(
                         chat_id=chat_id,
                         text=(
-                            f"✅ *Video generated successfully!*\n\n"
-                            f"File size is *{file_size_mb:.1f} MB* (exceeds Telegram Bot API 50MB limit).\n"
+                            f"✅ *ReelPilot Studio — Video Generated*\n\n"
+                            f"File size is *{file_size_mb:.1f} MB* (exceeds Telegram Bot API 50MB direct delivery limit).\n"
                             f"Video stored at: `{export_path.name}`\n\n"
                             f"{caption_text}"
                         ),
@@ -371,9 +377,10 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
                         bot,
                         chat_id,
                         msg_id,
-                        f"✅ *ReelPilot Job Completed!*\n\n"
-                        f"Job ID: `{job.id[:8]}`\n"
-                        f"Output file: `{export_path.name}` ({file_size_mb:.1f} MB)",
+                        f"✅ *ReelPilot Studio — Job Completed*\n\n"
+                        f"• Job ID: `{job.id[:8]}`\n"
+                        f"• Media Asset: `{export_path.name}` ({file_size_mb:.1f} MB)\n"
+                        f"• Status: Delivered to chat.",
                         parse_mode="Markdown",
                     )
 
@@ -390,11 +397,11 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
                         bot,
                         job.telegram_chat_id,
                         job.telegram_message_id,
-                        f"❌ *Job Failed*\n\n"
-                        f"Job ID: `{job.id[:8]}`\n"
-                        f"Stage: {job.stage}\n"
-                        f"Error: {e}\n\n"
-                        f"Tap below to retry:",
+                        f"⚠️ *ReelPilot Studio — Pipeline Exception*\n\n"
+                        f"• Job ID: `{job.id[:8]}`\n"
+                        f"• Stage: {job.stage}\n"
+                        f"• Details: {e}\n\n"
+                        f"Select below to retry this workflow:",
                         reply_markup=build_retry_keyboard(job.id),
                         parse_mode="Markdown",
                     )
