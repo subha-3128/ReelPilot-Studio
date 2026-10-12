@@ -116,6 +116,7 @@ class MediaService:
         cmd = [
             self.ffmpeg_bin,
             "-y",
+            "-threads", "2",
             "-i", str(mp4_path),
             "-vn",                      # Ignore video track entirely
             "-c:a", "aac",
@@ -188,8 +189,8 @@ class MediaService:
 
         filter_str = ",".join(audio_filters) if audio_filters else None
 
-        # Build FFmpeg command
-        cmd = [self.ffmpeg_bin, "-y"]
+        # Build FFmpeg command (bound to 2 worker threads to preserve RAM within 512MB limits)
+        cmd = [self.ffmpeg_bin, "-y", "-threads", "2"]
 
         # Input 0: Video
         cmd.extend(["-i", str(source_video_path)])
@@ -231,6 +232,9 @@ class MediaService:
         except subprocess.SubprocessError as e:
             logger.error("FFmpeg voiceover sync failed: %s", e)
             raise HTTPException(status_code=500, detail=f"Voice-over synchronization failed: {e}")
+        finally:
+            import gc
+            gc.collect()
 
         # Probe derivative to verify output integrity
         out_meta = self.probe(output_derivative_path)
@@ -283,6 +287,7 @@ class MediaService:
         cmd = [
             self.ffmpeg_bin,
             "-y",
+            "-threads", "2",
             "-i", str(video_path),
             "-vf", sub_filter,
             "-c:v", "libx264",
@@ -298,6 +303,9 @@ class MediaService:
         except subprocess.SubprocessError as e:
             logger.error("FFmpeg burn subtitles failed: %s", e)
             raise HTTPException(status_code=500, detail=f"Subtitle burn-in failed: {e}")
+        finally:
+            import gc
+            gc.collect()
 
         return output_path
 
@@ -324,7 +332,7 @@ class MediaService:
             probe_info = {"duration": 15.0, "has_audio": True}
         source_duration = probe_info.get("duration", 0.0)
 
-        cmd = [self.ffmpeg_bin, "-y", "-i", str(source_video_path)]
+        cmd = [self.ffmpeg_bin, "-y", "-threads", "2", "-i", str(source_video_path)]
 
         # Video filter: scale and pad to 1080x1920 9:16 with square pixel SAR
         vf = "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1"
@@ -363,6 +371,10 @@ class MediaService:
             logger.warning("render_final_export transcoding fallback: %s", e)
             if not output_derivative_path.exists() or output_derivative_path.stat().st_size == 0:
                 shutil.copy2(source_video_path, output_derivative_path)
+            out_meta = self.probe(output_derivative_path)
+        finally:
+            import gc
+            gc.collect()
             try:
                 out_meta = self.probe(output_derivative_path)
             except Exception:

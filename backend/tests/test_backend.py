@@ -327,3 +327,43 @@ def test_youtube_shorts_metadata_enforcement():
     db.close()
     dummy_path.unlink(missing_ok=True)
 
+def test_clean_expired_media_after_5_minutes():
+    import time
+    import os
+    from app.services.scheduler import scheduler
+
+    old_file = settings.DERIVATIVES_DIR / "old_test_reel.mp4"
+    old_file.write_bytes(b"old reel content")
+    past_time = time.time() - 350
+    os.utime(old_file, (past_time, past_time))
+
+    fresh_file = settings.DERIVATIVES_DIR / "fresh_test_reel.mp4"
+    fresh_file.write_bytes(b"fresh reel content")
+
+    db_file = settings.DERIVATIVES_DIR / "test_backup.db"
+    db_file.write_bytes(b"sqlite content")
+    os.utime(db_file, (past_time, past_time))
+
+    try:
+        scheduler._clean_expired_media(max_age_seconds=300)
+
+        assert not old_file.exists(), "Old reel should be deleted after 5 minutes"
+        assert fresh_file.exists(), "Fresh reel under 5 minutes must be preserved"
+        assert db_file.exists(), "Database files must not be deleted by media cleaner"
+    finally:
+        old_file.unlink(missing_ok=True)
+        fresh_file.unlink(missing_ok=True)
+        db_file.unlink(missing_ok=True)
+
+@pytest.mark.asyncio
+async def test_delayed_reel_cleanup():
+    from app.telegram.pipeline import _delayed_reel_cleanup
+
+    temp_reel = settings.TEMP_DIR / "test_delayed_reel.mp4"
+    temp_reel.write_bytes(b"temp reel data")
+    assert temp_reel.exists()
+
+    await _delayed_reel_cleanup([temp_reel], delay_seconds=0)
+
+    assert not temp_reel.exists(), "Delayed cleanup should delete reel from Render storage"
+

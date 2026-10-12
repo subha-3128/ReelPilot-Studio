@@ -335,13 +335,22 @@ class YouTubePublisher(PlatformPublisher):
 
                 logger.info("YouTube resumable upload initiated for %s (%d bytes). Streaming...", clean_title, file_size)
 
-                # 2. Upload video payload
-                with open(video_path, "rb") as video_file:
-                    upload_res = client.put(
-                        upload_url,
-                        content=video_file.read(),
-                        headers={"Content-Type": "video/mp4"},
-                    )
+                # 2. Upload video payload via chunk streaming to avoid loading full file into memory
+                def _file_chunk_stream(p: Path, chunk_size: int = 1024 * 1024):
+                    with open(p, "rb") as f:
+                        while chunk := f.read(chunk_size):
+                            yield chunk
+
+                upload_res = client.put(
+                    upload_url,
+                    content=_file_chunk_stream(video_path),
+                    headers={
+                        "Content-Type": "video/mp4",
+                        "Content-Length": str(file_size),
+                    },
+                )
+                import gc
+                gc.collect()
 
                 if upload_res.status_code not in (200, 201):
                     err_msg = upload_res.json().get("error", {}).get("message", upload_res.text)
@@ -416,6 +425,21 @@ class SocialPublishingService:
             pub.remote_post_id = result.get("remote_post_id")
             pub.remote_post_url = result.get("remote_post_url")
             pub.error_details = None
+
+            # Delete reel from Render storage 5 minutes after post
+            def _delete_file_after_delay(file_p: Path, delay: int = 300):
+                time.sleep(delay)
+                try:
+                    if file_p and file_p.exists() and file_p.is_file():
+                        file_p.unlink(missing_ok=True)
+                        logger.info("Purged posted reel from Render storage 5 min after post: %s", file_p.name)
+                except Exception as del_err:
+                    logger.debug("Failed deleting file %s: %s", file_p, del_err)
+                import gc
+                gc.collect()
+
+            import threading
+            threading.Thread(target=_delete_file_after_delay, args=(video_path, 300), daemon=True).start()
         else:
             pub.status = "failed"
             pub.error_details = result.get("error", "Unknown publishing error")

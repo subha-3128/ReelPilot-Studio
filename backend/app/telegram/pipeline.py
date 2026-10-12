@@ -48,6 +48,7 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
             chat_id = job.telegram_chat_id
             msg_id = job.telegram_message_id
             user_settings: Dict[str, Any] = job.collected_settings or {}
+            cleanup_paths: list[Path] = []
 
             # --- STEP 1: Download Source Video ---
             job.status = "downloading"
@@ -69,6 +70,9 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
 
             job.asset_id = video_asset.id
             db.commit()
+
+            if video_asset.original_local_path:
+                cleanup_paths.append(Path(video_asset.original_local_path))
 
             # --- STEP 2: Audio & Voice-over Processing ---
             job.status = "transcribing"
@@ -108,6 +112,7 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
                     ),
                 )
                 media_service.generate_thumbnail(out_path, thumb_path)
+                cleanup_paths.extend([out_path, thumb_path])
 
                 deriv = MediaDerivative(
                     id=deriv_id,
@@ -184,6 +189,7 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
                     ),
                 )
                 media_service.generate_thumbnail(captioned_path, thumb_path)
+                cleanup_paths.extend([captioned_path, srt_path, thumb_path])
 
                 meta = media_service.probe(captioned_path)
                 captioned_deriv = MediaDerivative(
@@ -258,6 +264,7 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
                 lambda: media_service.render_final_export(current_video_path, export_path),
             )
             media_service.generate_thumbnail(export_path, thumb_path)
+            cleanup_paths.extend([export_path, thumb_path])
 
             meta = media_service.probe(export_path)
             final_deriv = MediaDerivative(
@@ -399,8 +406,13 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
                         parse_mode="Markdown",
                     )
 
+                # Schedule automatic reel & media cleanup 5 minutes (300s) after post
+                asyncio.create_task(_delayed_reel_cleanup(cleanup_paths, delay_seconds=300))
+
         except Exception as e:
             logger.exception("Error executing ReelPilot processing job %s: %s", job_id, e)
+            if cleanup_paths:
+                asyncio.create_task(_delayed_reel_cleanup(cleanup_paths, delay_seconds=60))
             job = db.query(ProcessingJob).filter(ProcessingJob.id == job_id).first()
             if job:
                 job.status = "failed"
@@ -422,3 +434,18 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
                     )
         finally:
             db.close()
+            import gc
+            gc.collect()
+
+async def _delayed_reel_cleanup(paths: list[Path], delay_seconds: int = 300):
+    """Wait 5 minutes after delivery, then purge local media files to keep Render RAM & disk minimal."""
+    await asyncio.sleep(delay_seconds)
+    for p in paths:
+        try:
+            if p and p.exists() and p.is_file():
+                p.unlink(missing_ok=True)
+                logger.info("Purged reel from Render storage 5 min after post: %s", p.name)
+        except Exception as e:
+            logger.debug("Failed deleting file %s: %s", p, e)
+    import gc
+    gc.collect()
