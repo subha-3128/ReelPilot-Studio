@@ -14,7 +14,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab }) => {
   const tabTitles: Record<string, { title: string; subtitle: string }> = {
     dashboard: {
       title: 'Download & Inspect Video',
-      subtitle: 'Paste any authorized Kuaishou/Kwai video URL to download to your Mac',
+      subtitle: 'Paste any authorized Instagram Reel, Kuaishou, or Kwai video URL to process',
     },
     library: {
       title: 'Video Library',

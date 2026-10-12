@@ -54,7 +54,7 @@ async def handle_video_url_submission(update: Update, context: ContextTypes.DEFA
     except Exception as e:
         await update.message.reply_text(
             f"❌ *Unsupported or Invalid URL*\n\n{e}\n\n"
-            f"Supported services: Kuaishou/Kwai links (e.g., `v.kuaishou.com`, `kwai.com`).",
+            f"Supported services: Instagram Reels, Kuaishou, and Kwai links (e.g., `instagram.com/reel/...`, `v.kuaishou.com`, `kwai.com`).",
             parse_mode="Markdown",
         )
         return

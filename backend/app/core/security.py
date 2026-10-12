@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 from fastapi import HTTPException
 from pathlib import Path
 
-# Permitted video hosting domains for Kuaishou/Kwai
+# Permitted video hosting domains for Kuaishou, Kwai, and Instagram
 ALLOWED_DOMAINS = {
     "kuaishou.com",
     "www.kuaishou.com",
@@ -16,6 +16,11 @@ ALLOWED_DOMAINS = {
     "m.kwai.com",
     "gifshow.com",
     "v.m.chenzhongtech.com",
+    "instagram.com",
+    "www.instagram.com",
+    "instagr.am",
+    "www.instagr.am",
+    "m.instagram.com",
 }
 
 def sanitize_filename(name: str) -> str:
@@ -54,7 +59,7 @@ def validate_and_normalize_url(url: str) -> str:
             status_code=400,
             detail=(
                 f"Domain '{hostname}' is not supported. "
-                f"Supported services: Kuaishou and Kwai links (e.g. v.kuaishou.com, kwai.com)."
+                f"Supported services: Instagram Reels, Kuaishou, and Kwai links (e.g. instagram.com, v.kuaishou.com, kwai.com)."
             ),
         )
 

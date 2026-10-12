@@ -455,7 +455,9 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                   ? 'Captioned Derivative'
                   : syncedDerivative
                   ? 'Voice-over Synced Derivative'
-                  : 'Original Kuaishou Video'}
+                  : currentAsset?.source_platform === 'instagram'
+                  ? 'Original Instagram Reel'
+                  : 'Original Source Video'}
               </strong>
             </div>
           </div>

@@ -35,7 +35,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"🎬 *Welcome to ReelPilot Studio Bot!*\n\n"
         f"I automate your short-video production pipeline:\n"
-        f"1. Send me any authorized Kuaishou/Kwai video link.\n"
+        f"1. Send me any authorized Instagram Reel, Kuaishou, or Kwai video link.\n"
         f"2. I'll ask you for preferences (or run automatically).\n"
         f"3. I'll download, sync voice-over, burn subtitles, generate AI copy with Gemini, and return the finished 9:16 video!\n\n"
         f"Current Mode: *{mode.capitalize()}*\n"
@@ -56,7 +56,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"📖 *ReelPilot Bot Guide*\n\n"
         f"• *How to produce a video:*\n"
-        f"Simply paste any mobile or web Kuaishou/Kwai link, e.g.:\n"
+        f"Simply paste any mobile or web Instagram Reel, Kuaishou, or Kwai link, e.g.:\n"
+        f"`https://www.instagram.com/reel/Cxxxxxx/`\n"
         f"`https://v.kuaishou.com/KXUHq2X9`\n\n"
         f"• *Workflow Modes:*\n"
         f"- *Interactive*: Asks you audio policy, subtitle style, AI tone, and social publishing targets via buttons.\n"
@@ -237,7 +238,7 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await handle_video_url_submission(update, context, first_url)
     else:
         await update.message.reply_text(
-            "Please send a supported Kuaishou/Kwai video link (e.g., `https://v.kuaishou.com/...`) to start processing, or type `/help` for commands.",
+            "Please send a supported Instagram Reel, Kuaishou, or Kwai link (e.g., `https://www.instagram.com/reel/...` or `https://v.kuaishou.com/...`) to start processing, or type `/help` for commands.",
             parse_mode="Markdown",
         )
 

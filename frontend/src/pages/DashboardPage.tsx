@@ -54,13 +54,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
     setError(null);
     setIsDownloading(true);
-    setDownloadStage('Connecting to Kuaishou / Kwai video source...');
+    setDownloadStage('Connecting to video source (Instagram / Kuaishou / Kwai)...');
 
     try {
       setDownloadStage('Extracting video stream with yt-dlp...');
       const asset = await api.downloadVideo(url.trim(), rightsAcknowledged);
       setDownloadedAsset(asset);
-      setDownloadStage('Video downloaded and saved locally on your Mac!');
+      setDownloadStage('Video downloaded and saved locally!');
     } catch (err: any) {
       setError(err.message || 'Download failed.');
     } finally {
@@ -72,9 +72,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     <div className="page-wrapper" style={{ maxWidth: '960px' }}>
       {/* Hero Header */}
       <div style={{ marginBottom: '32px' }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Download Kuaishou / Kwai Video</h2>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Download Video (Instagram, Kuaishou & Kwai)</h2>
         <p className="text-muted" style={{ marginTop: '4px' }}>
-          Fetch source videos locally to your Mac storage, ready for voice-over replacement and captioning.
+          Fetch source videos locally, ready for voice-over replacement, caption burning, and AI syndication.
         </p>
       </div>
 
@@ -85,14 +85,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             htmlFor="kuaishou-url-input"
             style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '8px' }}
           >
-            Kuaishou / Kwai Video URL
+            Video URL (Instagram Reel, Kuaishou, Kwai)
           </label>
           <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
             <input
               id="kuaishou-url-input"
               type="url"
               className="input"
-              placeholder="https://v.kuaishou.com/xxxxxx or https://kwai.com/v/xxxxxx"
+              placeholder="https://www.instagram.com/reel/... or https://v.kuaishou.com/..."
               value={url}
               onChange={(e) => {
                 setUrl(e.target.value);

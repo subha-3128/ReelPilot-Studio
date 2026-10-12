@@ -134,7 +134,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
           <Film size={48} color="var(--color-muted-foreground)" style={{ margin: '0 auto 16px' }} />
           <h3 style={{ fontSize: '1.25rem', marginBottom: '8px' }}>No videos in library yet</h3>
           <p className="text-muted" style={{ maxWidth: '420px', margin: '0 auto 24px' }}>
-            Paste a Kuaishou / Kwai link in the downloader tab to ingest your first video.
+            Paste an Instagram Reel, Kuaishou, or Kwai link in the downloader tab to ingest your first video.
           </p>
           <button className="btn btn-primary" onClick={onNavigateToDownload}>
             Go to Downloader

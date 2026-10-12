@@ -22,6 +22,9 @@ def test_valid_kuaishou_urls():
         "https://www.kuaishou.com/short-video/3x7a8b",
         "https://kwai.com/v/example",
         "https://m.kwai.com/photo/12345",
+        "https://www.instagram.com/reel/Cxxxxxx/",
+        "https://instagram.com/p/Cxxxxxx/",
+        "https://instagr.am/reel/12345",
     ]
     for url in valid_urls:
         normalized = validate_and_normalize_url(url)

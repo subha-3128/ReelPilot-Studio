@@ -142,18 +142,19 @@ class DownloaderService:
                 "message": "Video with this exact URL already exists in your library.",
             }
 
-        # 1. First probe via native Kuaishou extractor
-        ks_info = self.extract_kuaishou_info(normalized_url)
-        if ks_info:
-            return {
-                "url": normalized_url,
-                "title": ks_info["title"],
-                "thumbnail": ks_info.get("thumb_url"),
-                "duration": ks_info.get("duration"),
-                "is_supported": True,
-                "duplicate_asset_id": None,
-                "message": "Valid Kuaishou video link ready for download.",
-            }
+        # 1. First probe via native Kuaishou extractor if Kuaishou/Kwai
+        if "kuaishou" in normalized_url or "kwai" in normalized_url:
+            ks_info = self.extract_kuaishou_info(normalized_url)
+            if ks_info:
+                return {
+                    "url": normalized_url,
+                    "title": ks_info["title"],
+                    "thumbnail": ks_info.get("thumb_url"),
+                    "duration": ks_info.get("duration"),
+                    "is_supported": True,
+                    "duplicate_asset_id": None,
+                    "message": "Valid Kuaishou video link ready for download.",
+                }
 
         # 2. Probe with yt-dlp --dump-json without downloading
         cmd = [
@@ -161,30 +162,33 @@ class DownloaderService:
             "--no-warnings",
             "--dump-json",
             "--no-playlist",
+            "--add-header", "User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             normalized_url,
         ]
         try:
             res = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=25)
             info = json.loads(res.stdout)
+            platform_name = "Instagram Reel" if ("instagram" in normalized_url or "instagr.am" in normalized_url) else "Video"
             return {
                 "url": normalized_url,
-                "title": info.get("title", "Kuaishou Video"),
+                "title": info.get("title") or info.get("description") or platform_name,
                 "thumbnail": info.get("thumbnail"),
-                "duration": float(info.get("duration", 0.0)),
+                "duration": float(info.get("duration", 0.0)) if info.get("duration") else None,
                 "is_supported": True,
                 "duplicate_asset_id": None,
-                "message": "Valid supported video link.",
+                "message": f"Valid {platform_name} link ready for download.",
             }
         except subprocess.SubprocessError as e:
             logger.warning("URL inspection fallback for %s: %s", normalized_url, e)
+            platform_name = "Instagram Reel" if ("instagram" in normalized_url or "instagr.am" in normalized_url) else "Kuaishou / Kwai Video"
             return {
                 "url": normalized_url,
-                "title": "Kuaishou / Kwai Video",
+                "title": platform_name,
                 "thumbnail": None,
                 "duration": None,
                 "is_supported": True,
                 "duplicate_asset_id": None,
-                "message": "Link ready for download.",
+                "message": f"{platform_name} ready for download.",
             }
 
     def download_video(
@@ -212,25 +216,34 @@ class DownloaderService:
         download_success = False
         target_file = None
 
-        # --- Method A: Native Kuaishou CDN Direct Stream ---
-        if progress_callback:
-            progress_callback(10.0, "Resolving Kuaishou video stream...")
+        # Determine platform
+        if "instagram" in normalized_url or "instagr.am" in normalized_url:
+            source_platform = "instagram"
+        elif "kuaishou" in normalized_url:
+            source_platform = "kuaishou"
+        else:
+            source_platform = "kwai"
 
-        ks_info = self.extract_kuaishou_info(normalized_url)
-        if ks_info and ks_info.get("video_url"):
-            clean_title = sanitize_filename(ks_info["title"])[:50]
-            candidate_file = settings.ORIGINALS_DIR / f"{file_id}_{clean_title}.mp4"
+        # --- Method A: Native Kuaishou CDN Direct Stream (Kuaishou/Kwai only) ---
+        if source_platform in ("kuaishou", "kwai"):
             if progress_callback:
-                progress_callback(25.0, f"Downloading video directly from Kuaishou CDN...")
-            if self._download_direct_stream(ks_info["video_url"], candidate_file):
-                target_file = candidate_file
-                download_success = True
-                logger.info("Direct native Kuaishou download succeeded: %s", candidate_file.name)
+                progress_callback(10.0, "Resolving Kuaishou video stream...")
 
-        # --- Method B: Fallback to yt-dlp ---
+            ks_info = self.extract_kuaishou_info(normalized_url)
+            if ks_info and ks_info.get("video_url"):
+                clean_title = sanitize_filename(ks_info["title"])[:50]
+                candidate_file = settings.ORIGINALS_DIR / f"{file_id}_{clean_title}.mp4"
+                if progress_callback:
+                    progress_callback(25.0, f"Downloading video directly from Kuaishou CDN...")
+                if self._download_direct_stream(ks_info["video_url"], candidate_file):
+                    target_file = candidate_file
+                    download_success = True
+                    logger.info("Direct native Kuaishou download succeeded: %s", candidate_file.name)
+
+        # --- Method B: Fallback to yt-dlp (Instagram Reels & fallback) ---
         if not download_success:
             if progress_callback:
-                progress_callback(30.0, "Starting video download via yt-dlp engine...")
+                progress_callback(30.0, f"Starting {source_platform.capitalize()} download via yt-dlp engine...")
 
             out_template = str(settings.ORIGINALS_DIR / f"{file_id}_%(title).50s.%(ext)s")
             cmd = [
@@ -238,6 +251,7 @@ class DownloaderService:
                 "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
                 "--merge-output-format", "mp4",
                 "--no-playlist",
+                "--add-header", "User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "-o", out_template,
                 normalized_url,
             ]
@@ -282,7 +296,7 @@ class DownloaderService:
         asset = VideoAsset(
             id=file_id,
             original_source_url=normalized_url,
-            source_platform="kuaishou" if "kuaishou" in normalized_url else "kwai",
+            source_platform=source_platform,
             original_local_path=str(target_file),
             filename=target_file.name,
             thumbnail_path=str(thumb_path) if thumb_path.exists() else None,

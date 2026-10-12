@@ -47,9 +47,9 @@
 
 - **100% Local-First & Private:** All media files, SQLite databases, and API secrets remain strictly on your local Mac. Servers bind only to loopback (`127.0.0.1`).
 - **Preserve Original Video Frames:** The source video stream is never cropped, distorted, or re-framed. The original 9:16 vertical video framing is strictly maintained, and original files are kept completely untouched in `storage/originals/`.
-- **Dual-Engine Ingestion Pipeline:** 
-  - **Primary:** High-speed native Kuaishou CDN stream parser (`window.INIT_STATE`) that follows mobile share links (`v.kuaishou.com`), pulls exact Chinese captions & author handles, and downloads high-definition `.mp4` video directly.
-  - **Fallback:** Automatic failover to `yt-dlp` array execution.
+- **Multi-Platform Ingestion Pipeline:** 
+  - **Instagram Reels:** Direct extraction of Instagram Reels and video posts via `yt-dlp`.
+  - **Kuaishou & Kwai:** High-speed native CDN stream parser (`window.INIT_STATE`) that follows mobile share links (`v.kuaishou.com`), pulls exact captions & author handles, with failover to `yt-dlp`.
 - **Voice-Over Engine:** 
   - Upload user-supplied English voice-over MP4s.
   - Automatically extracts the audio track via FFmpeg, discarding unnecessary video tracks.
@@ -511,7 +511,7 @@ backend/tests/test_full_workflow.py::test_complete_end_to_end_video_workflow PAS
 ## Security & Privacy Model
 
 1. **Loopback Server Binding:** The backend binds strictly to `127.0.0.1:8000`, preventing unauthorized network access from other devices on the local area network.
-2. **SSRF Guard:** Ingestion URLs are strictly validated against an allowlist of official Kuaishou/Kwai domains (`v.kuaishou.com`, `kuaishou.com`, `kwai.com`, `chenzhongtech.com`). DNS resolution blocks private, loopback, and link-local IP addresses.
+2. **SSRF Guard:** Ingestion URLs are strictly validated against an allowlist of official Instagram, Kuaishou, and Kwai domains (`instagram.com`, `instagr.am`, `v.kuaishou.com`, `kuaishou.com`, `kwai.com`, `chenzhongtech.com`). DNS resolution blocks private, loopback, and link-local IP addresses.
 3. **Path Traversal Guards:** File streaming and storage lookups use `safe_resolve_path` to guarantee that all requested file paths are strictly contained within the allowed storage roots.
 4. **Credential Isolation:** OAuth secrets, refresh tokens, and AI keys are never committed to version control and are never exposed in client browser JavaScript bundles.
 
