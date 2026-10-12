@@ -11,6 +11,7 @@ from app.core.security import validate_and_normalize_url, sanitize_filename, saf
 from app.services.transcription import transcription_service, format_timestamp_srt, format_timestamp_vtt
 from app.services.metadata_ai import metadata_service
 from app.models.models import VideoAsset, MediaDerivative, Publication, SocialAccount
+from app.core.config import settings
 from fastapi import HTTPException
 
 from tests.conftest import TestingSessionLocal, client
@@ -178,3 +179,152 @@ def test_publication_creation_and_independent_status():
     ig_pub = next(p for p in pubs if p["platform"] == "instagram")
     retry_res = client.post(f"/api/publications/{ig_pub['id']}/retry")
     assert retry_res.status_code == 200
+
+# 7. Media Streaming & Social Ingestion Tests
+def test_media_stream_by_filename():
+    test_file = settings.DERIVATIVES_DIR / "test_stream_video.mp4"
+    test_file.write_bytes(b"A" * 1024)
+    try:
+        # Full content
+        res = client.get("/api/media/stream/test_stream_video.mp4")
+        assert res.status_code == 200
+        assert len(res.content) == 1024
+
+        # Partial content Range request
+        res_range = client.get(
+            "/api/media/stream/test_stream_video.mp4",
+            headers={"Range": "bytes=0-499"},
+        )
+        assert res_range.status_code == 206
+        assert "Content-Range" in res_range.headers
+        assert res_range.headers["Content-Range"] == "bytes 0-499/1024"
+        assert len(res_range.content) == 500
+    finally:
+        test_file.unlink(missing_ok=True)
+
+def test_instagram_publisher_share_to_feed_and_permalink(monkeypatch):
+    from unittest.mock import patch, MagicMock
+    from app.services.publisher import InstagramPublisher
+
+    ig = InstagramPublisher()
+    dummy_path = settings.ORIGINALS_DIR / "dummy_ig.mp4"
+    dummy_path.write_bytes(b"dummy")
+
+    # Set mock Render environment URL
+    monkeypatch.setenv("RENDER_EXTERNAL_URL", "https://reelpilot-test.onrender.com")
+
+    url = ig._get_public_video_url(dummy_path, None)
+    assert url == "https://reelpilot-test.onrender.com/api/media/stream/dummy_ig.mp4"
+
+    # Test publish container payload and permalink lookup
+    captured_payloads = []
+    def mock_post(url, *args, **kwargs):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        if "media_publish" in url:
+            mock_resp.json.return_value = {"id": "18114804401518384"}
+        else:
+            payload = kwargs.get("data", {})
+            captured_payloads.append(payload)
+            mock_resp.json.return_value = {"id": "container_123"}
+        return mock_resp
+
+    def mock_get(url, *args, **kwargs):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        if "fields=status_code" in url:
+            mock_resp.json.return_value = {"status_code": "FINISHED"}
+        elif "permalink" in url:
+            mock_resp.json.return_value = {
+                "permalink": "https://www.instagram.com/reel/DeXRBHigPKE/",
+                "shortcode": "DeXRBHigPKE",
+                "id": "18114804401518384",
+            }
+        return mock_resp
+
+    db = TestingSessionLocal()
+    mock_pub = MagicMock()
+    mock_pub.derivative_id = "deriv_1"
+
+    with patch("httpx.Client.post", side_effect=mock_post), \
+         patch("httpx.Client.get", side_effect=mock_get), \
+         patch("app.core.config.settings.INSTAGRAM_ACCESS_TOKEN", "mock_token"), \
+         patch("app.core.config.settings.INSTAGRAM_ACCOUNT_ID", "17841400000000000"):
+
+        result = ig.publish(
+            db=db,
+            publication=mock_pub,
+            video_path=dummy_path,
+            title="Epic Reel",
+            caption="Check out this epic moment!",
+            description="",
+            tags="#reels, #viral",
+        )
+
+        assert result["success"] is True
+        assert result["remote_post_id"] == "18114804401518384"
+        assert result["remote_post_url"] == "https://www.instagram.com/reel/DeXRBHigPKE/"
+        assert len(captured_payloads) > 0
+        assert captured_payloads[0]["share_to_feed"] == "true"
+        assert captured_payloads[0]["media_type"] == "REELS"
+
+    db.close()
+    dummy_path.unlink(missing_ok=True)
+
+def test_youtube_shorts_metadata_enforcement():
+    from unittest.mock import patch, MagicMock
+    from app.services.publisher import YouTubePublisher
+
+    yt = YouTubePublisher()
+    dummy_path = settings.ORIGINALS_DIR / "dummy_yt.mp4"
+    dummy_path.write_bytes(b"dummy")
+
+    captured_metadata = []
+    def mock_post(url, *args, **kwargs):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        if "uploadType=resumable" in url:
+            captured_metadata.append(kwargs.get("json"))
+            mock_resp.headers = {"Location": "https://upload.youtube.com/resumable/test"}
+        return mock_resp
+
+    def mock_put(url, *args, **kwargs):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"id": "short_vid_999"}
+        return mock_resp
+
+    db = TestingSessionLocal()
+    mock_pub = MagicMock()
+
+    with patch.object(yt, "_get_access_token", return_value="mock_yt_token"), \
+         patch("httpx.Client.post", side_effect=mock_post), \
+         patch("httpx.Client.put", side_effect=mock_put):
+
+        res = yt.publish(
+            db=db,
+            publication=mock_pub,
+            video_path=dummy_path,
+            title="Unbelievable Action Scene",
+            caption="",
+            description="Detailed commentary",
+            tags="action, skills",
+        )
+
+        assert res["success"] is True
+        assert res["remote_post_id"] == "short_vid_999"
+        assert res["remote_post_url"] == "https://youtube.com/shorts/short_vid_999"
+
+        assert len(captured_metadata) == 1
+        meta = captured_metadata[0]["snippet"]
+        # Must enforce #Shorts in title
+        assert "#Shorts" in meta["title"]
+        # Must enforce #Shorts in description
+        assert "#Shorts" in meta["description"]
+        # Must enforce Shorts tags
+        assert "Shorts" in meta["tags"]
+        assert "YouTube Shorts" in meta["tags"]
+
+    db.close()
+    dummy_path.unlink(missing_ok=True)
+

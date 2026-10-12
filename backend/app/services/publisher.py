@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
@@ -39,11 +40,11 @@ class InstagramPublisher(PlatformPublisher):
     """
     def _get_public_video_url(self, video_path: Path, derivative_id: Optional[str]) -> str:
         """Obtain a publicly reachable direct HTTPS download URL for Meta ingestion servers."""
-        if settings.PUBLIC_BASE_URL:
-            clean_base = settings.PUBLIC_BASE_URL.rstrip("/")
-            if derivative_id:
-                return f"{clean_base}/api/media/derivative/{derivative_id}"
-            return f"{clean_base}/api/media/video/{video_path.name}"
+        base_url = settings.PUBLIC_BASE_URL or os.environ.get("RENDER_EXTERNAL_URL")
+        if base_url:
+            clean_base = base_url.rstrip("/")
+            # Use dedicated public stream endpoint with 206 Partial Content support
+            return f"{clean_base}/api/media/stream/{video_path.name}"
 
         logger.info("Uploading media to high-speed direct hosting for Meta ingestion: %s", video_path.name)
         safe_name = f"reel_{int(time.time())}.mp4"
@@ -82,7 +83,7 @@ class InstagramPublisher(PlatformPublisher):
         except Exception as e:
             logger.warning("Uguu upload failed: %s", e)
 
-        raise ValueError("Could not upload video to direct media hosting for Meta Reels ingestion.")
+        raise ValueError("Could not obtain public URL or direct upload for Meta Reels ingestion.")
 
     def publish(
         self,
@@ -119,21 +120,25 @@ class InstagramPublisher(PlatformPublisher):
             video_url = self._get_public_video_url(video_path, publication.derivative_id)
             logger.info("Meta Reels ingestion video URL ready: %s", video_url)
 
-            # 2. Create Reels container
-            container_url = f"https://graph.instagram.com/v21.0/{ig_user_id}/media"
+            # 2. Create Reels container (with share_to_feed=true for feed + reels placement)
             container_payload = {
                 "media_type": "REELS",
                 "video_url": video_url,
                 "caption": full_caption,
+                "share_to_feed": "true",
                 "access_token": token,
             }
 
+            api_base = "https://graph.instagram.com/v21.0"
             with httpx.Client(timeout=45.0) as client:
-                res = client.post(container_url, data=container_payload)
+                res = client.post(f"{api_base}/{ig_user_id}/media", data=container_payload)
                 if res.status_code != 200:
                     # Fallback to graph.facebook.com endpoint
-                    fb_url = f"https://graph.facebook.com/v21.0/{ig_user_id}/media"
-                    res = client.post(fb_url, data=container_payload)
+                    fb_base = "https://graph.facebook.com/v21.0"
+                    res_fb = client.post(f"{fb_base}/{ig_user_id}/media", data=container_payload)
+                    if res_fb.status_code == 200:
+                        res = res_fb
+                        api_base = fb_base
 
                 if res.status_code != 200:
                     err_msg = res.json().get("error", {}).get("message", res.text)
@@ -143,31 +148,52 @@ class InstagramPublisher(PlatformPublisher):
                 if not creation_id:
                     return {"success": False, "error": "Instagram API did not return a media creation container ID."}
 
-                logger.info("Instagram container created: %s. Polling processing status...", creation_id)
+                logger.info("Instagram container created: %s. Polling processing status via %s...", creation_id, api_base)
 
                 # 3. Poll container status (Meta processes the video asynchronously)
-                status_url = f"https://graph.instagram.com/v21.0/{creation_id}?fields=status_code&access_token={token}"
+                status_url = f"{api_base}/{creation_id}?fields=status_code,status&access_token={token}"
                 status_code = "IN_PROGRESS"
-                max_attempts = 30  # Wait up to ~60s
-                for _ in range(max_attempts):
+                max_attempts = 45  # Wait up to 90s
+                for attempt in range(max_attempts):
                     time.sleep(2)
                     s_res = client.get(status_url)
                     if s_res.status_code == 200:
                         status_code = s_res.json().get("status_code", "")
+                        logger.info("Instagram container %s status: %s (attempt %d/%d)", creation_id, status_code, attempt + 1, max_attempts)
                         if status_code in ("FINISHED", "READY"):
                             break
                         elif status_code == "ERROR":
-                            return {"success": False, "error": "Instagram failed to process the video stream."}
+                            err_info = s_res.json().get("status", "Meta processing error")
+                            return {"success": False, "error": f"Instagram failed to process video stream: {err_info}"}
+
+                if status_code not in ("FINISHED", "READY"):
+                    return {"success": False, "error": f"Instagram video processing timed out (status: {status_code})."}
 
                 # 4. Publish Reels container
-                publish_url = f"https://graph.instagram.com/v21.0/{ig_user_id}/media_publish"
+                publish_url = f"{api_base}/{ig_user_id}/media_publish"
                 pub_res = client.post(publish_url, data={"creation_id": creation_id, "access_token": token})
                 if pub_res.status_code != 200:
                     err_msg = pub_res.json().get("error", {}).get("message", pub_res.text)
                     return {"success": False, "error": f"Instagram media_publish error: {err_msg}"}
 
                 media_id = pub_res.json().get("id", creation_id)
+
+                # 5. Retrieve real public Instagram permalink & shortcode
+                # (Instagram media IDs are numeric; the browser URL requires permalink or shortcode to avoid 404)
                 post_url = f"https://www.instagram.com/reel/{media_id}/"
+                try:
+                    meta_query_url = f"{api_base}/{media_id}?fields=permalink,shortcode&access_token={token}"
+                    m_res = client.get(meta_query_url, timeout=15.0)
+                    if m_res.status_code == 200:
+                        m_data = m_res.json()
+                        if m_data.get("permalink"):
+                            post_url = m_data["permalink"]
+                        elif m_data.get("shortcode"):
+                            post_url = f"https://www.instagram.com/reel/{m_data['shortcode']}/"
+                except Exception as p_err:
+                    logger.warning("Could not fetch permalink for IG media %s: %s", media_id, p_err)
+
+                logger.info("Instagram Reel published successfully! Media ID: %s, URL: %s", media_id, post_url)
 
                 return {
                     "success": True,
@@ -183,7 +209,11 @@ class InstagramPublisher(PlatformPublisher):
 class YouTubePublisher(PlatformPublisher):
     """
     YouTube Shorts direct uploader via official YouTube Data API v3 with OAuth 2.0.
-    Uses account refresh token to obtain access token and performs resumable video upload.
+    Ensures strict YouTube Shorts qualification:
+    - #Shorts enforced in Title (<= 100 chars)
+    - #Shorts prepended to Description
+    - Shorts / YouTube Shorts tags included
+    - Privacy status public with direct https://youtube.com/shorts/{id} permalink
     """
     def _get_access_token(self) -> str:
         client_id = settings.YOUTUBE_CLIENT_ID
@@ -223,11 +253,27 @@ class YouTubePublisher(PlatformPublisher):
             access_token = self._get_access_token()
             file_size = video_path.stat().st_size
 
-            # Parse tags
+            # Parse and normalize tags: enforce Shorts tags
             tag_list = [t.strip().lstrip("#") for t in tags.split(",") if t.strip()]
+            for st in ["Shorts", "YouTube Shorts"]:
+                if st.lower() not in [t.lower() for t in tag_list]:
+                    tag_list.insert(0, st)
 
-            clean_title = (title.strip() or video_path.name.rsplit(".", 1)[0])[:95]
-            clean_desc = description.strip() or f"{clean_title}\n\n#Shorts #YouTube"
+            # Enforce #Shorts in Title (max 100 characters in YouTube)
+            clean_title = (title.strip() or video_path.name.rsplit(".", 1)[0])
+            clean_title = clean_title.replace("\n", " ").strip()
+            if "#shorts" not in clean_title.lower():
+                if len(clean_title) > 85:
+                    clean_title = clean_title[:85].rstrip()
+                clean_title = f"{clean_title} #Shorts"
+            clean_title = clean_title[:100]
+
+            # Enforce #Shorts in Description
+            base_desc = (description.strip() or caption.strip() or clean_title)
+            if "#shorts" not in base_desc.lower():
+                clean_desc = f"#Shorts\n\n{base_desc}\n\n#YouTubeShorts #Trending"
+            else:
+                clean_desc = base_desc
 
             metadata = {
                 "snippet": {
@@ -261,7 +307,7 @@ class YouTubePublisher(PlatformPublisher):
                 if not upload_url:
                     return {"success": False, "error": "Google API did not return upload Location header."}
 
-                logger.info("YouTube resumable upload initiated. Streaming %d bytes...", file_size)
+                logger.info("YouTube resumable upload initiated for %s (%d bytes). Streaming...", clean_title, file_size)
 
                 # 2. Upload video payload
                 with open(video_path, "rb") as video_file:

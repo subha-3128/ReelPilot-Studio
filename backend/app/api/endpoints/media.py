@@ -96,3 +96,19 @@ def get_thumbnail(asset_id: str, db: Session = Depends(get_db)):
 
     file_path = safe_resolve_path(settings.STORAGE_DIR, str(thumb_path))
     return FileResponse(file_path, media_type="image/jpeg")
+
+@router.get("/stream/{filename}")
+def stream_file_by_name(filename: str, request: Request):
+    """
+    Public streaming route for media files (derivatives, originals, exports).
+    Supports HTTP 206 Partial Content for Meta Reels and media crawlers.
+    """
+    storage_root = Path(settings.STORAGE_DIR).resolve()
+    for sub in ["derivatives", "originals", ""]:
+        candidate = (storage_root / sub / filename).resolve()
+        if candidate.exists() and candidate.is_file() and str(candidate).startswith(str(storage_root)):
+            range_header = request.headers.get("range")
+            if range_header:
+                return send_file_range(candidate, range_header)
+            return FileResponse(candidate, media_type="video/mp4")
+    raise HTTPException(status_code=404, detail="Media file not found")

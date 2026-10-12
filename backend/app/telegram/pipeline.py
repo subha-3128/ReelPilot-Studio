@@ -253,10 +253,9 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
             export_path = settings.DERIVATIVES_DIR / export_filename
             thumb_path = settings.THUMBNAILS_DIR / f"{final_id}.jpg"
 
-            import shutil
-            await loop.run_in_executor(
+            export_info = await loop.run_in_executor(
                 None,
-                lambda: shutil.copy2(current_video_path, export_path),
+                lambda: media_service.render_final_export(current_video_path, export_path),
             )
             media_service.generate_thumbnail(export_path, thumb_path)
 
