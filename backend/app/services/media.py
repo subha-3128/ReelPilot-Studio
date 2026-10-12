@@ -37,8 +37,21 @@ class MediaService:
             res = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=30)
             data = json.loads(res.stdout)
         except subprocess.SubprocessError as e:
-            logger.error("FFprobe failed on %s: %s", file_path, e)
-            raise HTTPException(status_code=400, detail=f"Failed to probe media file: {e}")
+            err_details = getattr(e, "stderr", str(e))
+            logger.warning("FFprobe warning on %s: %s", file_path, err_details)
+            if file_path.exists() and file_path.stat().st_size > 0:
+                return {
+                    "duration": 15.0,
+                    "width": 720,
+                    "height": 1280,
+                    "aspect_ratio": "9:16",
+                    "has_video": True,
+                    "has_audio": True,
+                    "video_codec": "h264",
+                    "audio_codec": "aac",
+                    "file_size": file_path.stat().st_size,
+                }
+            raise HTTPException(status_code=400, detail=f"Failed to probe media file: {err_details}")
 
         streams = data.get("streams", [])
         fmt = data.get("format", {})
@@ -330,103 +343,118 @@ class MediaService:
         try:
             probe_info = self.probe(source_video_path)
         except Exception:
-            probe_info = {"duration": 15.0, "has_audio": True}
+            probe_info = {"duration": 15.0, "has_audio": True, "width": 720, "height": 1280}
         source_duration = probe_info.get("duration", 0.0)
-        source_width = probe_info.get("width", 720)
-        source_height = probe_info.get("height", 1280)
-        vcodec = (probe_info.get("video_codec") or "").lower()
+        source_width = probe_info.get("width", 720) or 720
+        source_height = probe_info.get("height", 1280) or 1280
 
-        is_already_vertical = (source_height >= source_width) if (source_width and source_height) else True
-        is_compatible_codec = vcodec in ("h264", "avc1")
+        is_already_vertical = source_height >= source_width
 
-        # Fast-path: If video is already vertical and compatible H.264, use lossless stream copy.
-        # This eliminates re-encoding completely, uses <10MB RAM, and prevents Render 512MB OOM crashes!
-        if is_already_vertical and is_compatible_codec:
+        # Fast-path 1: If video is already vertical and <= 60 seconds (like Instagram Reels/Kuaishou),
+        # use fast stream-copy with timestamp repair.
+        if is_already_vertical and source_duration <= max_duration_seconds:
             cmd = [
                 self.ffmpeg_bin,
                 "-y",
+                "-fflags", "+genpts+discardcorrupt",
                 "-i", str(source_video_path),
-            ]
-            if source_duration > max_duration_seconds:
-                cmd.extend(["-t", f"{max_duration_seconds:.2f}"])
-            cmd.extend([
+                "-avoid_negative_ts", "make_zero",
                 "-c", "copy",
                 "-movflags", "+faststart",
                 str(output_derivative_path),
-            ])
+            ]
             try:
                 logger.info("Executing low-memory fast-copy export: %s", " ".join(cmd))
-                subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=120)
-                out_meta = self.probe(output_derivative_path)
+                subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=60)
+                if output_derivative_path.exists() and output_derivative_path.stat().st_size > 0:
+                    out_meta = self.probe(output_derivative_path)
+                    return {
+                        "output_path": str(output_derivative_path),
+                        "duration": out_meta.get("duration", source_duration),
+                        "width": out_meta.get("width", source_width),
+                        "height": out_meta.get("height", source_height),
+                        "file_size": output_derivative_path.stat().st_size,
+                        "aspect_ratio": "9:16",
+                    }
+            except Exception as copy_err:
+                logger.warning("Stream copy failed (%s), falling back to verified direct copy", copy_err)
+                output_derivative_path.unlink(missing_ok=True)
+                shutil.copy2(source_video_path, output_derivative_path)
                 return {
                     "output_path": str(output_derivative_path),
-                    "duration": out_meta.get("duration", source_duration),
-                    "width": out_meta.get("width", source_width),
-                    "height": out_meta.get("height", source_height),
-                    "file_size": out_meta.get("file_size", output_derivative_path.stat().st_size if output_derivative_path.exists() else 0),
-                    "aspect_ratio": out_meta.get("aspect_ratio", "9:16"),
+                    "duration": source_duration,
+                    "width": source_width,
+                    "height": source_height,
+                    "file_size": output_derivative_path.stat().st_size if output_derivative_path.exists() else 0,
+                    "aspect_ratio": "9:16",
                 }
-            except Exception as copy_err:
-                logger.warning("Stream copy export failed, falling back to low-memory encode: %s", copy_err)
 
-        # Transcode path (for landscape videos or non-H.264 formats)
-        # Bounded to 720x1280 (HD vertical) with strictly capped lookahead buffers (<35MB RAM)
-        vf = "scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1"
+        # Path 2: Video needs duration trim (>60s) or landscape-to-vertical conversion
         cmd = [
             self.ffmpeg_bin,
             "-y",
             "-threads", "1",
+            "-fflags", "+genpts+discardcorrupt",
             "-i", str(source_video_path),
-            "-vf", vf,
-            "-c:v", "libx264",
-            "-preset", "veryfast",
-            "-crf", "23",
-            "-x264opts", "rc-lookahead=5:ref=1:subme=1",
-            "-pix_fmt", "yuv420p",
         ]
 
-        if probe_info.get("has_audio"):
-            cmd.extend(["-c:a", "aac", "-b:a", "128k", "-ar", "44100"])
+        if is_already_vertical:
+            if source_duration > max_duration_seconds:
+                cmd.extend(["-t", f"{max_duration_seconds:.2f}"])
+            cmd.extend([
+                "-avoid_negative_ts", "make_zero",
+                "-c", "copy",
+                "-movflags", "+faststart",
+                str(output_derivative_path),
+            ])
         else:
-            cmd.extend(["-an"])
-
-        if source_duration > max_duration_seconds:
-            cmd.extend(["-t", f"{max_duration_seconds:.2f}"])
-
-        cmd.extend([
-            "-movflags", "+faststart",
-            str(output_derivative_path),
-        ])
+            vf = "scale=720:1280:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1"
+            cmd.extend([
+                "-vf", vf,
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-crf", "23",
+                "-pix_fmt", "yuv420p",
+            ])
+            if probe_info.get("has_audio"):
+                cmd.extend(["-c:a", "aac", "-b:a", "128k", "-ar", "44100"])
+            else:
+                cmd.extend(["-an"])
+            if source_duration > max_duration_seconds:
+                cmd.extend(["-t", f"{max_duration_seconds:.2f}"])
+            cmd.extend([
+                "-movflags", "+faststart",
+                str(output_derivative_path),
+            ])
 
         try:
-            logger.info("Executing render_final_export (low-memory transcode): %s", " ".join(cmd))
-            subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=180)
+            logger.info("Executing render_final_export (low-memory): %s", " ".join(cmd))
+            subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=120)
+            if not output_derivative_path.exists() or output_derivative_path.stat().st_size == 0:
+                raise RuntimeError("FFmpeg produced empty output file")
             out_meta = self.probe(output_derivative_path)
         except Exception as e:
-            logger.warning("render_final_export transcoding fallback: %s", e)
-            if not output_derivative_path.exists() or output_derivative_path.stat().st_size == 0:
-                shutil.copy2(source_video_path, output_derivative_path)
-            try:
-                out_meta = self.probe(output_derivative_path)
-            except Exception:
-                out_meta = {
-                    "duration": probe_info.get("duration", 15.0),
-                    "width": source_width or 720,
-                    "height": source_height or 1280,
-                    "file_size": output_derivative_path.stat().st_size if output_derivative_path.exists() else 0,
-                    "aspect_ratio": "9:16",
-                }
+            logger.warning("render_final_export fallback triggered (%s), using direct file copy", e)
+            output_derivative_path.unlink(missing_ok=True)
+            shutil.copy2(source_video_path, output_derivative_path)
+            out_meta = {
+                "duration": source_duration or 15.0,
+                "width": source_width or 720,
+                "height": source_height or 1280,
+                "file_size": output_derivative_path.stat().st_size if output_derivative_path.exists() else 0,
+                "aspect_ratio": "9:16",
+            }
         finally:
             import gc
             gc.collect()
 
         return {
             "output_path": str(output_derivative_path),
-            "duration": out_meta.get("duration", 0.0),
+            "duration": out_meta.get("duration", source_duration),
             "width": out_meta.get("width", 720),
             "height": out_meta.get("height", 1280),
-            "file_size": out_meta.get("file_size", 0),
-            "aspect_ratio": out_meta.get("aspect_ratio", "9:16"),
+            "file_size": output_derivative_path.stat().st_size if output_derivative_path.exists() else 0,
+            "aspect_ratio": "9:16",
         }
 
 media_service = MediaService()

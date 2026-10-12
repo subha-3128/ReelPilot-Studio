@@ -266,7 +266,11 @@ async def execute_job_pipeline(job_id: str, bot: Bot):
             media_service.generate_thumbnail(export_path, thumb_path)
             cleanup_paths.extend([export_path, thumb_path])
 
-            meta = media_service.probe(export_path)
+            try:
+                meta = media_service.probe(export_path)
+            except Exception as probe_err:
+                logger.warning("Post-export probe warning: %s. Using export_info.", probe_err)
+                meta = export_info or {}
             final_deriv = MediaDerivative(
                 id=final_id,
                 video_asset_id=video_asset.id,
